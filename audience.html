@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客群分析後台 | 品牌增長</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background:#eef5ea; font-family:'Inter',sans-serif; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        nav { background:white; border-radius:48px; padding:12px 24px; margin-bottom:32px; display:flex; gap:24px; flex-wrap:wrap; }
+        nav a { text-decoration:none; font-weight:600; color:#5a7452; padding:6px 12px; border-radius:40px; }
+        nav a.active { background:#7cb342; color:white; }
+        .card { background:white; border-radius:28px; padding:24px; margin-bottom:24px; }
+        .card-title { font-size:1.3rem; font-weight:700; margin-bottom:20px; border-left:4px solid #a5d6a5; padding-left:16px; }
+        .stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:20px; }
+        .stat-box { background:#fafdf5; border-radius:24px; padding:16px; text-align:center; }
+        table { width:100%; border-collapse:collapse; margin-top:16px; font-size:0.8rem; }
+        th, td { padding:8px; text-align:left; border-bottom:1px solid #e2e8e0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="index.html">📁 上傳資料</a>
+        <a href="dashboard.html">📊 策略監測室</a>
+        <a href="check.html">✅ 發布達標沒</a>
+        <a href="funnel.html">📈 活動轉換漏斗</a>
+        <a href="audience.html" class="active">👥 客群分析後台</a>
+    </nav>
+    <div id="audienceContent" class="card">載入中...</div>
+</div>
+<script>
+    function renderAudience() {
+        const raw = localStorage.getItem('feedbackData');
+        if (!raw) {
+            document.getElementById('audienceContent').innerHTML = `<p>⚠️ 尚未上傳任何「客群回饋表單」，請至首頁上傳檔名包含「回饋表單」的 CSV。</p>`;
+            return;
+        }
+        const feedbacks = JSON.parse(raw);
+        if (feedbacks.length === 0) {
+            document.getElementById('audienceContent').innerHTML = `<p>⚠️ 回饋數據為空。</p>`;
+            return;
+        }
+        let avgSat = 'N/A';
+        const satisfactionValues = feedbacks.map(f => f.satisfaction).filter(v => v && !isNaN(Number(v)));
+        if (satisfactionValues.length) {
+            avgSat = (satisfactionValues.reduce((a,b)=>a+Number(b),0)/satisfactionValues.length).toFixed(1);
+        }
+        let tableHtml = '</table><tr><th>日期</th><th>滿意度</th><th>評論摘要</th></tr>';
+        feedbacks.slice(0,10).forEach(f => {
+            tableHtml += `<tr>
+                <td>${f.date || '-'}</td>
+                <td>${f.satisfaction || '-'}</td>
+                <td>${(f.comment || '').substring(0,50)}</td>
+            </td>`;
+        });
+        tableHtml += '</table>';
+
+        const html = `
+            <div class="card-title">📋 客群回饋分析 (共 ${feedbacks.length} 筆)</div>
+            <div class="stat-grid">
+                <div class="stat-box">😊 平均滿意度<br><strong>${avgSat}</strong> / 5</div>
+                <div class="stat-box">📝 回饋筆數<br><strong>${feedbacks.length}</strong></div>
+                <div class="stat-box">⭐ 最高頻標籤<br><strong>${'待擴充'}</strong></div>
+            </div>
+            <div class="card-title">📄 最近回饋明細</div>
+            ${tableHtml}
+            <div class="small-note" style="margin-top:20px;">※ 可依需求擴充 CSV 欄位分析（如 sentiment, category 等）</div>
+        `;
+        document.getElementById('audienceContent').innerHTML = html;
+    }
+    renderAudience();
+</script>
+</body>
+</html>
