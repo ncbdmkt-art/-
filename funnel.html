@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活動轉換漏斗 | 品牌增長</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body { background:#eef5ea; font-family:'Inter',sans-serif; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        nav { background:white; border-radius:48px; padding:12px 24px; margin-bottom:32px; display:flex; gap:24px; flex-wrap:wrap; align-items:center; }
+        nav a { text-decoration:none; font-weight:600; color:#5a7452; padding:6px 12px; border-radius:40px; }
+        nav a.active { background:#7cb342; color:white; }
+        .card { background:white; border-radius:28px; padding:24px; margin-bottom:24px; }
+        .card-title { font-size:1.3rem; font-weight:700; margin-bottom:20px; border-left:4px solid #a5d6a5; padding-left:16px; }
+        select { padding:8px 16px; border-radius:40px; border:1px solid #c5e0b4; background:white; margin-left:12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="index.html">📁 上傳資料</a>
+        <a href="dashboard.html">📊 策略監測室</a>
+        <a href="check.html">✅ 發布達標沒</a>
+        <a href="funnel.html" class="active">📈 活動轉換漏斗</a>
+        <a href="audience.html">👥 客群分析後台</a>
+        <div style="margin-left:auto;">
+            <label>📢 渠道：</label>
+            <select id="channelSelect">
+                <option value="all">全部渠道</option>
+                <option value="IG">Instagram</option>
+                <option value="FB">Facebook</option>
+                <option value="LINE">LINE</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Threads">Threads</option>
+            </select>
+        </div>
+    </nav>
+    <div class="card">
+        <div class="card-title">📊 轉換漏斗模型</div>
+        <canvas id="funnelChart" height="200" style="width:100%; max-height:400px;"></canvas>
+        <div class="small-note">※ 曝光 = 總觸及；點擊 = 互動數 * 0.3 (模擬)；加入購物車 & 完成轉換另以比例估算。實際可依活動連結點擊數據調整。</div>
+    </div>
+</div>
+<script>
+    function getPostsByChannel(channel) {
+        if (channel === 'all') {
+            const channels = ['IG','FB','LINE','YouTube','Threads'];
+            let all = [];
+            channels.forEach(ch => {
+                const raw = localStorage.getItem(`posts_${ch}`);
+                if (raw) all = all.concat(JSON.parse(raw));
+            });
+            return all;
+        }
+        const raw = localStorage.getItem(`posts_${channel}`);
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    function renderFunnel() {
+        const channel = document.getElementById('channelSelect').value;
+        const posts = getPostsByChannel(channel);
+        if (posts.length === 0) {
+            document.getElementById('funnelChart').style.display = 'none';
+            document.querySelector('.card').innerHTML += `<p style="color:red;">⚠️ 尚無「${channel}」數據，請先上傳。</p>`;
+            return;
+        }
+        document.getElementById('funnelChart').style.display = 'block';
+        const totalReach = posts.reduce((s,p)=>s+p.views,0);
+        const totalInteractions = posts.reduce((s,p)=>s+p.interactions,0);
+        const clicks = Math.floor(totalInteractions * 0.3);
+        const addToCart = Math.floor(clicks * 0.25);
+        const conversions = Math.floor(addToCart * 0.4);
+        const ctx = document.getElementById('funnelChart').getContext('2d');
+        if (window.funnelChart) window.funnelChart.destroy();
+        window.funnelChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['曝光(觸及)', '點擊連結', '加入購物車', '完成轉換'],
+                datasets: [{ label: `人數 (${channel === 'all' ? '全渠道' : channel})`, data: [totalReach, clicks, addToCart, conversions], backgroundColor: '#7cb342' }]
+            },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+    }
+
+    document.getElementById('channelSelect').addEventListener('change', renderFunnel);
+    renderFunnel();
+</script>
+</body>
+</html>
