@@ -272,10 +272,10 @@
             htmlOutput += `
                 <div class="dual-item">
                     <div class="platform"><i class="fab ${iconMap[plat]}"></i> ${platformNameMap[plat]}</div>
-                    ${buildMetricRow('👍 按讚率增幅', 'fas fa-thumbs-up', formatMainVal(likeGrowth), '%', likeChangeHtml)}
-                    ${buildMetricRow('👥 粉絲增幅', 'fas fa-users', formatMainVal(fansGrowth), '%', fansChangeHtml)}
-                    ${buildMetricRow('💬 互動率', 'fas fa-comment-dots', engRate.toFixed(2), '%', engChangeHtml)}
-                    ${buildMetricRow('📈 觸及增幅', 'fas fa-chart-line', formatMainVal(reachGrowth), '%', reachChangeHtml)}
+                    ${buildMetricRow('按讚率增幅', 'fas fa-thumbs-up', formatMainVal(likeGrowth), '%', likeChangeHtml)}
+                    ${buildMetricRow('粉絲增幅', 'fas fa-users', formatMainVal(fansGrowth), '%', fansChangeHtml)}
+                    ${buildMetricRow('互動率', 'fas fa-comment-dots', engRate.toFixed(2), '%', engChangeHtml)}
+                    ${buildMetricRow('觸及增幅', 'fas fa-chart-line', formatMainVal(reachGrowth), '%', reachChangeHtml)}
                 </div>`;
         }
         document.getElementById('coreMetrics').innerHTML = `<div class="dual-metric">${htmlOutput}</div>`;
