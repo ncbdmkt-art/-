@@ -76,28 +76,11 @@
 </div>
 
 <script>
-    // ---------- 輔助函數 ----------
-    function getChannelFromFilename(filename) {
-        const upper = filename.toUpperCase();
-        if (upper.includes('IG')) return 'IG';
-        if (upper.includes('FB')) return 'FB';
-        if (upper.includes('LINE')) return 'LINE';
-        if (upper.includes('YOUTUBE')) return 'YouTube';
-        if (upper.includes('THREADS')) return 'Threads';
-        return null;
-    }
-
-    function isFeedbackFile(filename) {
-        return /回饋表單/i.test(filename) || /feedback/i.test(filename);
-    }
-
-    // 增強版日期解析
+    // ======================== 共用工具函數 ========================
     function parseDate(value) {
         if (!value) return null;
-        // 嘗試直接 new Date
         let d = new Date(value);
         if (!isNaN(d.getTime())) return d;
-        // 嘗試常見格式: YYYY/MM/DD, YYYY-MM-DD, YYYY年M月D日
         let str = String(value).trim();
         let match = str.match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})/);
         if (match) {
@@ -105,7 +88,6 @@
             d = new Date(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
             if (!isNaN(d.getTime())) return d;
         }
-        // 嘗試 Excel 序列號 (較少見)
         if (!isNaN(Number(value))) {
             let excelDate = new Date((Number(value) - 25569) * 86400000);
             if (!isNaN(excelDate.getTime())) return excelDate;
@@ -113,286 +95,225 @@
         return null;
     }
 
-    // 智能映射單一貼文
-    function mapPostFromRow(row, fallbackChannel = null) {
-        // 將所有 key 標準化：去除前後空格、全形轉半形、轉小寫
+    function mapPostFromRow(row, fallbackChannel) {
         const normalized = {};
         for (let [key, val] of Object.entries(row)) {
             if (val === undefined || val === null) continue;
             let cleanKey = String(key).trim().toLowerCase();
-            // 將全形括號、空格等轉為半形 (簡單處理)
             cleanKey = cleanKey.replace(/[（(]/g, '(').replace(/[）)]/g, ')');
             normalized[cleanKey] = val;
         }
 
-        // 1. 日期：優先使用「發佈日期」
-        let date = null;
-        if (normalized['發佈日期']) date = parseDate(normalized['發佈日期']);
-        else if (normalized['date']) date = parseDate(normalized['date']);
-        if (!date) {
-            console.warn('跳過：無效日期', normalized);
-            return null;
-        }
+        let date = normalized['發佈日期'] ? parseDate(normalized['發佈日期']) : (normalized['date'] ? parseDate(normalized['date']) : null);
+        if (!date) return null;
 
-        // 2. 平臺：發布管道 / platform，若無則使用檔名推斷的管道
         let platform = normalized['發布管道'] || normalized['platform'] || '';
         if (!platform && fallbackChannel) platform = fallbackChannel;
-        if (!platform) {
-            console.warn('跳過：無平臺資訊', normalized);
-            return null;
-        }
+        if (!platform) return null;
 
-        // 3. 觀看數 (支援多種別名)
-        let views = normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'];
-        views = Number(views);
-        if (isNaN(views)) views = 0;
-
-        // 4. 點讚數
-        let likes = normalized['點讚數'] ?? normalized['likes'];
-        likes = Number(likes);
-        if (isNaN(likes)) likes = 0;
-
-        // 5. 分享數 / Repost / Reposts / 轉發
-        let shares = normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['reposts'] ?? normalized['shares'];
-        shares = Number(shares);
-        if (isNaN(shares)) shares = 0;
-
-        // 6. 儲存數
-        let saves = normalized['儲存數'] ?? normalized['saves'];
-        saves = Number(saves);
-        if (isNaN(saves)) saves = 0;
-
-        // 7. 互動數
-        let interactions = normalized['互動數'] ?? normalized['interactions'];
-        interactions = Number(interactions);
-        if (isNaN(interactions)) interactions = 0;
-
-        // 8. 非粉絲比例
-        let nonFansPercent = normalized['非粉絲比例'] ?? normalized['nonfanspercent'];
-        nonFansPercent = Number(nonFansPercent);
-        if (isNaN(nonFansPercent)) nonFansPercent = 0;
-
-        // 9. hasIP 判斷
-        let hasIP = false;
-        if (normalized['標籤'] && /ip/i.test(normalized['標籤'])) hasIP = true;
-        if (normalized['活動主題'] && /ip/i.test(normalized['活動主題'])) hasIP = true;
-
-        const type = normalized['專案類型'] || normalized['format'] || '';
-        const title = normalized['串文名稱'] || normalized['活動主題'] || '';
+        let views = Number(normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'] ?? 0);
+        let likes = Number(normalized['點讚數'] ?? normalized['likes'] ?? 0);
+        let shares = Number(normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['reposts'] ?? normalized['shares'] ?? 0);
+        let saves = Number(normalized['儲存數'] ?? normalized['saves'] ?? 0);
+        let interactions = Number(normalized['互動數'] ?? normalized['interactions'] ?? 0);
+        let nonFansPercent = Number(normalized['非粉絲比例'] ?? normalized['nonfanspercent'] ?? 0);
+        let hasIP = (normalized['標籤'] && /ip/i.test(normalized['標籤'])) || (normalized['活動主題'] && /ip/i.test(normalized['活動主題']));
 
         return {
-            date,
-            platform: String(platform),
-            type: String(type),
-            title: String(title),
-            views,
-            likes,
-            shares,
-            saves,
-            interactions,
-            nonFansPercent,
-            hasIP,
-            retentionRate: 0,
-            raw: row
+            date, platform: String(platform), type: String(normalized['專案類型'] || normalized['format'] || ''),
+            title: String(normalized['串文名稱'] || normalized['活動主題'] || ''),
+            views, likes, shares, saves, interactions, nonFansPercent, hasIP, retentionRate: 0, raw: row
         };
     }
 
     function parseCSVtoPosts(jsonRows, channel) {
         const posts = [];
         for (let i = 0; i < jsonRows.length; i++) {
-            const row = jsonRows[i];
-            const post = mapPostFromRow(row, channel);
-            if (post) {
-                posts.push(post);
-            } else {
-                // 輸出前 3 筆無效資料的欄位樣貌，協助除錯
-                if (i < 3) console.warn(`第 ${i+1} 列無效，原始欄位:`, Object.keys(row).slice(0,5).map(k=>`${k}=${row[k]}`).join(', '));
-            }
+            const post = mapPostFromRow(jsonRows[i], channel);
+            if (post) posts.push(post);
+            else if (i < 3) console.warn(`第 ${i+1} 列無效，欄位:`, Object.keys(jsonRows[i]).slice(0,5).join(', '));
         }
         return posts;
-    }
-
-    // ---------- 儲存與顯示函數 ----------
-    function saveSocialPosts(channel, posts) {
-        const key = `posts_${channel}`;
-        let existing = [];
-        const rawExisting = localStorage.getItem(key);
-        if (rawExisting) {
-            try {
-                existing = JSON.parse(rawExisting);
-            } catch (e) {
-                console.error('解析既有資料失敗，重新初始化', e);
-                existing = [];
-            }
-        }
-        existing = existing.concat(posts);
-        localStorage.setItem(key, JSON.stringify(existing));
-        updateSocialFileList();
-    }
-
-    function saveFeedbackData(rows) {
-        let existing = [];
-        const rawExisting = localStorage.getItem('feedbackData');
-        if (rawExisting) {
-            try {
-                existing = JSON.parse(rawExisting);
-            } catch (e) {
-                console.error('解析既有回饋資料失敗', e);
-                existing = [];
-            }
-        }
-        existing = existing.concat(rows);
-        localStorage.setItem('feedbackData', JSON.stringify(existing));
-        updateFeedbackFileList();
-    }
-
-    function updateSocialFileList() {
-        const channels = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
-        let html = '';
-        let hasAny = false;
-        for (let ch of channels) {
-            const raw = localStorage.getItem(`posts_${ch}`);
-            if (raw) {
-                try {
-                    const data = JSON.parse(raw);
-                    const count = data.length;
-                    html += `<div class="file-item">📁 ${ch} : ${count} 筆貼文</div>`;
-                    hasAny = true;
-                } catch (e) {}
-            }
-        }
-        if (!hasAny) html = '尚未上傳任何社群檔案';
-        document.getElementById('socialFileList').innerHTML = html;
-    }
-
-    function updateFeedbackFileList() {
-        const raw = localStorage.getItem('feedbackData');
-        let count = 0;
-        if (raw) {
-            try {
-                const data = JSON.parse(raw);
-                count = data.length;
-            } catch (e) {}
-        }
-        document.getElementById('feedbackFileList').innerHTML = count ? `📋 已上傳 ${count} 筆回饋記錄` : '尚未上傳任何回饋表單';
     }
 
     function readCSVFile(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = e => {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet);
-                    resolve(rows);
-                } catch (err) {
-                    reject(err);
-                }
+                    resolve(XLSX.utils.sheet_to_json(sheet));
+                } catch (err) { reject(err); }
             };
-            reader.onerror = (err) => reject(err);
+            reader.onerror = err => reject(err);
             reader.readAsArrayBuffer(file);
         });
     }
 
-    async function handleSocialFiles(files) {
-        const statusDiv = document.getElementById('socialStatus');
-        for (let file of files) {
-            const channel = getChannelFromFilename(file.name);
-            if (!channel) {
-                statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含 IG/FB/LINE/YouTube/Threads 關鍵字，已略過。</div>`;
-                continue;
-            }
-            try {
-                const jsonRows = await readCSVFile(file);
-                if (!jsonRows.length) throw new Error('CSV 無資料列');
-                // 輸出欄位名稱到控制台，便於除錯
-                console.log(`📄 檔案 ${file.name} 欄位名稱:`, Object.keys(jsonRows[0]));
-                const posts = parseCSVtoPosts(jsonRows, channel);
-                if (posts.length === 0) {
-                    // 提供更詳細的錯誤訊息
-                    const sampleRow = jsonRows[0];
-                    const hasDate = sampleRow['發佈日期'] || sampleRow['date'];
-                    const hasPlatform = sampleRow['發布管道'] || sampleRow['platform'];
-                    let reason = '';
-                    if (!hasDate) reason += '缺少「發佈日期」或「date」欄位；';
-                    if (!hasPlatform) reason += '缺少「發布管道」或「platform」欄位；';
-                    if (reason === '') reason = '日期或平臺格式無法正確解析，請檢查 CSV 內容。';
-                    throw new Error(`無法從 CSV 解析出任何有效貼文。${reason} 詳情請看瀏覽器控制台。`);
+    // ======================== 配置驅動的上傳區塊 ========================
+    const sections = [
+        {
+            // 社群後臺
+            type: 'social',
+            fileInputId: 'socialFiles',
+            uploadAreaId: 'socialUploadArea',
+            fileListId: 'socialFileList',
+            statusId: 'socialStatus',
+            clearBtnId: 'clearSocialBtn',
+            // 判斷檔案是否屬於此區塊（檔名濾鏡）
+            isValidFile: (filename) => {
+                const upper = filename.toUpperCase();
+                return upper.includes('IG') || upper.includes('FB') || upper.includes('LINE') ||
+                       upper.includes('YOUTUBE') || upper.includes('THREADS');
+            },
+            // 從檔名取得頻道（僅社群需要）
+            getChannel: (filename) => {
+                const upper = filename.toUpperCase();
+                if (upper.includes('IG')) return 'IG';
+                if (upper.includes('FB')) return 'FB';
+                if (upper.includes('LINE')) return 'LINE';
+                if (upper.includes('YOUTUBE')) return 'YouTube';
+                if (upper.includes('THREADS')) return 'Threads';
+                return null;
+            },
+            // 處理上傳的檔案陣列
+            processFiles: async (files, statusDiv) => {
+                for (let file of files) {
+                    const channel = sections[0].getChannel(file.name);
+                    if (!channel) {
+                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含 IG/FB/LINE/YouTube/Threads 關鍵字，已略過。</div>`;
+                        continue;
+                    }
+                    try {
+                        const jsonRows = await readCSVFile(file);
+                        if (!jsonRows.length) throw new Error('CSV 無資料列');
+                        console.log(`📄 檔案 ${file.name} 欄位:`, Object.keys(jsonRows[0]));
+                        const posts = parseCSVtoPosts(jsonRows, channel);
+                        if (posts.length === 0) {
+                            const sample = jsonRows[0];
+                            const hasDate = sample['發佈日期'] || sample['date'];
+                            const hasPlatform = sample['發布管道'] || sample['platform'];
+                            let reason = !hasDate ? '缺少「發佈日期」或「date」；' : (!hasPlatform ? '缺少「發布管道」或「platform」；' : '日期或平臺格式無法解析。');
+                            throw new Error(`無法解析出有效貼文。${reason} 請看控制台。`);
+                        }
+                        const key = `posts_${channel}`;
+                        let existing = JSON.parse(localStorage.getItem(key) || '[]');
+                        existing = existing.concat(posts);
+                        localStorage.setItem(key, JSON.stringify(existing));
+                        statusDiv.innerHTML += `<div class="success">✅ ${file.name} → ${channel} (${posts.length} 筆)</div>`;
+                    } catch (err) {
+                        console.error(err);
+                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
+                    }
                 }
-                saveSocialPosts(channel, posts);
-                statusDiv.innerHTML += `<div class="success">✅ ${file.name} → ${channel} (成功解析 ${posts.length} 筆)</div>`;
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
+            },
+            // 更新顯示列表
+            updateDisplay: () => {
+                const channels = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
+                let html = '', hasAny = false;
+                channels.forEach(ch => {
+                    const raw = localStorage.getItem(`posts_${ch}`);
+                    if (raw) {
+                        try {
+                            const count = JSON.parse(raw).length;
+                            html += `<div class="file-item">📁 ${ch} : ${count} 筆貼文</div>`;
+                            hasAny = true;
+                        } catch(e) {}
+                    }
+                });
+                document.getElementById('socialFileList').innerHTML = hasAny ? html : '尚未上傳任何社群檔案';
+            },
+            // 清除資料
+            clearData: () => {
+                ['IG', 'FB', 'LINE', 'YouTube', 'Threads'].forEach(ch => localStorage.removeItem(`posts_${ch}`));
+                sections[0].updateDisplay();
+                const statusDiv = document.getElementById('socialStatus');
+                statusDiv.innerHTML = '<div class="success">🗑️ 已清空所有社群資料</div>';
+                setTimeout(() => statusDiv.innerHTML = '', 2000);
+            }
+        },
+        {
+            // 客群回饋
+            type: 'feedback',
+            fileInputId: 'feedbackFiles',
+            uploadAreaId: 'feedbackUploadArea',
+            fileListId: 'feedbackFileList',
+            statusId: 'feedbackStatus',
+            clearBtnId: 'clearFeedbackBtn',
+            isValidFile: (filename) => /回饋表單/i.test(filename) || /feedback/i.test(filename),
+            getChannel: null, // 回饋不需要頻道
+            processFiles: async (files, statusDiv) => {
+                for (let file of files) {
+                    if (!sections[1].isValidFile(file.name)) {
+                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含「回饋表單」或「feedback」，已略過。</div>`;
+                        continue;
+                    }
+                    try {
+                        const rows = await readCSVFile(file);
+                        if (!rows.length) throw new Error('CSV 無資料列');
+                        let existing = JSON.parse(localStorage.getItem('feedbackData') || '[]');
+                        existing = existing.concat(rows);
+                        localStorage.setItem('feedbackData', JSON.stringify(existing));
+                        statusDiv.innerHTML += `<div class="success">✅ ${file.name} (${rows.length} 筆)</div>`;
+                    } catch (err) {
+                        console.error(err);
+                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
+                    }
+                }
+            },
+            updateDisplay: () => {
+                const raw = localStorage.getItem('feedbackData');
+                let count = 0;
+                if (raw) {
+                    try { count = JSON.parse(raw).length; } catch(e) {}
+                }
+                document.getElementById('feedbackFileList').innerHTML = count ? `📋 已上傳 ${count} 筆回饋記錄` : '尚未上傳任何回饋表單';
+            },
+            clearData: () => {
+                localStorage.removeItem('feedbackData');
+                sections[1].updateDisplay();
+                const statusDiv = document.getElementById('feedbackStatus');
+                statusDiv.innerHTML = '<div class="success">🗑️ 已清空回饋數據</div>';
+                setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         }
-        setTimeout(() => { statusDiv.innerHTML = ''; }, 8000);
-    }
+    ];
 
-    async function handleFeedbackFiles(files) {
-        const statusDiv = document.getElementById('feedbackStatus');
-        for (let file of files) {
-            if (!isFeedbackFile(file.name)) {
-                statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含「回饋表單」或「feedback」，已略過。</div>`;
-                continue;
-            }
-            try {
-                const rows = await readCSVFile(file);
-                if (!rows.length) throw new Error('CSV 無資料列');
-                saveFeedbackData(rows);
-                statusDiv.innerHTML += `<div class="success">✅ ${file.name} (${rows.length} 筆)</div>`;
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
-            }
-        }
-        setTimeout(() => { statusDiv.innerHTML = ''; }, 8000);
-    }
+    // ======================== 統一初始化所有區塊 ========================
+    sections.forEach(section => {
+        const fileInput = document.getElementById(section.fileInputId);
+        const uploadArea = document.getElementById(section.uploadAreaId);
+        const statusDiv = document.getElementById(section.statusId);
+        const clearBtn = document.getElementById(section.clearBtnId);
 
-    function clearSocialData() {
-        const channels = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
-        channels.forEach(ch => localStorage.removeItem(`posts_${ch}`));
-        updateSocialFileList();
-        const statusDiv = document.getElementById('socialStatus');
-        statusDiv.innerHTML = '<div class="success">🗑️ 已清空所有社群資料</div>';
-        setTimeout(() => statusDiv.innerHTML = '', 2000);
-    }
-
-    function clearFeedbackData() {
-        localStorage.removeItem('feedbackData');
-        updateFeedbackFileList();
-        const statusDiv = document.getElementById('feedbackStatus');
-        statusDiv.innerHTML = '<div class="success">🗑️ 已清空回饋數據</div>';
-        setTimeout(() => statusDiv.innerHTML = '', 2000);
-    }
-
-    // 綁定事件
-    document.getElementById('socialUploadArea').addEventListener('click', () => document.getElementById('socialFiles').click());
-    document.getElementById('socialFiles').addEventListener('change', (e) => handleSocialFiles(Array.from(e.target.files)));
-    document.getElementById('feedbackUploadArea').addEventListener('click', () => document.getElementById('feedbackFiles').click());
-    document.getElementById('feedbackFiles').addEventListener('change', (e) => handleFeedbackFiles(Array.from(e.target.files)));
-    document.getElementById('clearSocialBtn').addEventListener('click', clearSocialData);
-    document.getElementById('clearFeedbackBtn').addEventListener('click', clearFeedbackData);
-
-    function setupDragAndDrop(areaId, fileInputId, handler) {
-        const area = document.getElementById(areaId);
-        area.addEventListener('dragover', (e) => { e.preventDefault(); area.style.background = '#f4fae9'; });
-        area.addEventListener('dragleave', () => { area.style.background = ''; });
-        area.addEventListener('drop', (e) => {
-            e.preventDefault();
-            area.style.background = '';
-            const files = Array.from(e.dataTransfer.files);
-            handler(files);
-            document.getElementById(fileInputId).files = files;
+        // 點擊上傳區觸發檔案選擇
+        uploadArea.addEventListener('click', () => fileInput.click());
+        // 選擇檔案後處理
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            section.processFiles(files, statusDiv);
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 8000);
         });
-    }
-    setupDragAndDrop('socialUploadArea', 'socialFiles', handleSocialFiles);
-    setupDragAndDrop('feedbackUploadArea', 'feedbackFiles', handleFeedbackFiles);
+        // 清除按鈕
+        clearBtn.addEventListener('click', () => section.clearData());
 
-    updateSocialFileList();
-    updateFeedbackFileList();
+        // 拖曳上傳
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.background = '#f4fae9'; });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.style.background = ''; });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '';
+            const files = Array.from(e.dataTransfer.files);
+            section.processFiles(files, statusDiv);
+            fileInput.files = files; // 同步顯示
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 8000);
+        });
+
+        // 初始顯示
+        section.updateDisplay();
+    });
 </script>
 </body>
 </html>
