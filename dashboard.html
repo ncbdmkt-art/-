@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>策略監測室 | 品牌增長</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#eef5ea; font-family:'Inter',sans-serif; padding:24px; color:#2c3e2f; }
+        .container { max-width:1600px; margin:0 auto; }
+        nav { background:white; border-radius:48px; padding:12px 24px; margin-bottom:24px; display:flex; gap:24px; flex-wrap:wrap; align-items:center; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+        nav a { text-decoration:none; font-weight:600; color:#5a7452; padding:6px 12px; border-radius:40px; }
+        nav a.active { background:#7cb342; color:white; }
+        .dashboard-layout { display:flex; gap:24px; flex-wrap:wrap; }
+        .left-column { flex:1.2; min-width:280px; display:flex; flex-direction:column; gap:24px; }
+        .right-column { flex:2.8; min-width:480px; display:flex; flex-direction:column; gap:24px; }
+        .card { background:white; border-radius:28px; padding:20px 24px; box-shadow:0 2px 8px rgba(0,0,0,0.02); }
+        .card-title { font-size:1.2rem; font-weight:700; margin-bottom:16px; padding-left:14px; border-left:4px solid #a5d6a5; display:flex; align-items:center; justify-content:space-between; }
+        .recap-card { background:#e8f0e3; border-left:6px solid #7cb342; }
+        .goal-item { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e2e8e0; }
+        .goal-name { font-weight:600; }
+        .goal-value { font-weight:700; font-size:1.2rem; }
+        .goal-progress { background:#e2e8e0; border-radius:40px; height:6px; width:100%; margin-top:6px; }
+        .goal-fill { background:#7cb342; height:6px; border-radius:40px; width:0%; }
+        .dual-metric { display:flex; gap:16px; margin-top:12px; }
+        .dual-item { flex:1; background:#fafdf5; border-radius:20px; padding:12px; text-align:center; }
+        .dual-item .platform { font-weight:700; margin-bottom:6px; }
+        .warning { color:#d9534f; }
+        .stable { color:#f0ad4e; }
+        .boom { color:#5cb85c; }
+        .lamp-red { display:inline-block; width:14px; height:14px; background:#d9534f; border-radius:50%; box-shadow:0 0 4px #d9534f; margin-left:8px; }
+        .lamp-green { background:#5cb85c; box-shadow:0 0 4px #5cb85c; }
+        .weight-bar { background:#e2e8e0; border-radius:20px; height:8px; margin:8px 0; }
+        .weight-fill { background:#7cb342; height:8px; border-radius:20px; width:0%; }
+        canvas.gauge-canvas { width:100%; height:auto; }
+        .simulator { background:#f4fae9; border-radius:28px; padding:20px; margin-top:16px; }
+        .simulator .channel-selector-inline { margin-bottom:20px; display:flex; align-items:center; gap:12px; background:white; padding:12px 16px; border-radius:48px; box-shadow:0 1px 3px rgba(0,0,0,0.05); }
+        .simulator .channel-selector-inline label { font-weight:600; color:#2c3e2f; }
+        .simulator .channel-selector-inline select { padding:8px 16px; border-radius:40px; border:1px solid #c5e0b4; background:white; font-family:inherit; }
+        .slider-group { margin-bottom:16px; }
+        input[type="range"] { width:100%; accent-color:#7cb342; }
+        .prediction-box { background:#eef5e9; border-radius:24px; padding:16px; margin-top:16px; }
+        .confidence { font-size:0.7rem; color:#5a7452; }
+        @media (max-width: 1000px) { .dashboard-layout { flex-direction:column; } .right-column { min-width:auto; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="index.html">📁 上傳資料</a>
+        <a href="dashboard.html" class="active">📊 策略監測室</a>
+        <a href="check.html">✅ 發布達標沒</a>
+        <a href="funnel.html">📈 活動轉換漏斗</a>
+        <a href="audience.html">👥 客群分析後台</a>
+    </nav>
+
+    <div class="dashboard-layout">
+        <div class="left-column">
+            <div class="card recap-card" id="recapCard">
+                <div class="card-title">📆 每月頻道 Recap</div>
+                <div id="recapText">載入中...</div>
+            </div>
+            <div class="card">
+                <div class="card-title">🎯 戰略目標總覽</div>
+                <div id="goalContainer"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">⏱️ 發布節奏穩定度</div>
+                <div id="rhythmLamps"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">🏆 渠道貢獻權重</div>
+                <div id="weightContainer"></div>
+            </div>
+        </div>
+
+        <div class="right-column">
+            <div class="card">
+                <div class="card-title">📊 核心數據儀表板 (月漲跌幅)</div>
+                <div id="coreMetrics"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">📈 近月觸及趨勢</div>
+                <canvas id="reachTrendChart" height="150"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-title">💬 近月互動率趨勢 + 預估損失</div>
+                <canvas id="engagementTrendChart" height="150"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-title">📐 內容槓桿率摘要</div>
+                <div id="leverageContainer"></div>
+            </div>
+            <div class="simulator">
+                <div class="card-title">📉 策略模擬與非線性風險預警 (線性回歸 ±10% CI)</div>
+                <div class="channel-selector-inline">
+                    <label>📢 選擇模擬渠道：</label>
+                    <select id="channelSelect">
+                        <option value="IG">Instagram</option>
+                        <option value="FB">Facebook</option>
+                        <option value="LINE">LINE</option>
+                        <option value="YouTube">YouTube</option>
+                        <option value="Threads">Threads</option>
+                    </select>
+                    <span style="font-size:0.75rem; color:#5a7452;">僅影響下方預測</span>
+                </div>
+                <div class="slider-group">
+                    <label>📈 貼文數量增減 (%) </label>
+                    <input type="range" id="postDelta" min="-30" max="50" value="0" step="5">
+                    <span id="postDeltaVal">0</span>%
+                </div>
+                <div class="slider-group">
+                    <label>👍 按讚率提升 (百分點) </label>
+                    <input type="range" id="likeDelta" min="-5" max="10" value="0" step="0.5">
+                    <span id="likeDeltaVal">0</span> ppt
+                </div>
+                <div class="slider-group">
+                    <label>🔄 轉發率提升 (百分點) </label>
+                    <input type="range" id="shareDelta" min="-5" max="10" value="0" step="0.5">
+                    <span id="shareDeltaVal">0</span> ppt
+                </div>
+                <div id="predictionResult" class="prediction-box">選擇渠道後顯示預測</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 全域資料擷取輔助 ==========
+    function getAllPosts() {
+        const channels = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
+        let all = [];
+        for (let ch of channels) {
+            const raw = localStorage.getItem(`posts_${ch}`);
+            if (raw) {
+                let posts = JSON.parse(raw);
+                posts.forEach(p => { if(p.date) p.date = new Date(p.date); });
+                all = all.concat(posts);
+            }
+        }
+        return all;
+    }
+
+    function getPostsByChannel(channel) {
+        const raw = localStorage.getItem(`posts_${channel}`);
+        let posts = raw ? JSON.parse(raw) : [];
+        posts.forEach(p => { if(p.date) p.date = new Date(p.date); });
+        return posts;
+    }
+
+    function getRawNumber(row, aliases, defaultValue=0) {
+        if (!row.raw) {
+            for (let alias of aliases) {
+                let val = row[alias];
+                if (val !== undefined && val !== null) {
+                    let num = Number(val);
+                    if (!isNaN(num)) return num;
+                }
+            }
+            return defaultValue;
+        }
+        for (let alias of aliases) {
+            let val = row.raw[alias];
+            if (val !== undefined && val !== null) {
+                let num = Number(val);
+                if (!isNaN(num)) return num;
+            }
+        }
+        return defaultValue;
+    }
+
+    function getLatestFollower(platform, posts) {
+        if (!posts.length) return 0;
+        const sorted = [...posts].sort((a,b) => b.date - a.date);
+        for (let p of sorted) {
+            let val = null;
+            if (platform === 'YouTube') {
+                val = getRawNumber(p, ['追蹤人數', '粉絲數'], null);
+            } else {
+                val = getRawNumber(p, ['粉絲數', '追蹤人數'], null);
+            }
+            if (val !== null && !isNaN(val) && val > 0) return val;
+        }
+        return 0;
+    }
+
+    function aggregateMonthlyByPlatform(posts) {
+        const groups = new Map();
+        for (let p of posts) {
+            if (!p.date) continue;
+            const year = p.date.getFullYear();
+            const month = p.date.getMonth() + 1;
+            const key = `${p.platform}_${year}-${month}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    platform: p.platform,
+                    yearMonth: `${year}-${month}`,
+                    year, month,
+                    posts: [],
+                    totalReach: 0,
+                });
+            }
+            const group = groups.get(key);
+            group.posts.push(p);
+            let reach = getRawNumber(p, ['觸及帳號', '觸及數', 'reach', 'views'], 0);
+            group.totalReach += reach;
+        }
+        const result = [];
+        for (let group of groups.values()) {
+            const engRates = group.posts.map(p => {
+                let interactions = getRawNumber(p, ['互動數', 'interactions'], 0);
+                let reach = getRawNumber(p, ['觸及帳號', 'reach', 'views'], 0);
+                return reach > 0 ? (interactions / reach) * 100 : 0;
+            });
+            const likeRates = group.posts.map(p => {
+                let likes = getRawNumber(p, ['點讚數', 'likes'], 0);
+                let reach = getRawNumber(p, ['觸及帳號', 'reach', 'views'], 0);
+                return reach > 0 ? (likes / reach) * 100 : 0;
+            });
+            engRates.sort((a,b)=>a-b);
+            likeRates.sort((a,b)=>a-b);
+            const medianEng = engRates.length ? engRates[Math.floor(engRates.length/2)] : 0;
+            const medianLike = likeRates.length ? likeRates[Math.floor(likeRates.length/2)] : 0;
+            result.push({
+                platform: group.platform,
+                yearMonth: group.yearMonth,
+                year: group.year,
+                month: group.month,
+                totalReach: group.totalReach,
+                postCount: group.posts.length,
+                medianEngagementRate: medianEng,
+                medianLikeRate: medianLike
+            });
+        }
+        return result;
+    }
+
+    function getMonthlyComparison(platform, monthlyAgg) {
+        const platformData = monthlyAgg.filter(m => m.platform === platform).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
+        if (platformData.length === 0) return null;
+        const latest = platformData[platformData.length-1];
+        const prev = platformData.length > 1 ? platformData[platformData.length-2] : null;
+        return { latest, prev };
+    }
+
+    function calcGrowthRate(current, previous, field) {
+        if (!previous || previous[field] === 0) return 0;
+        return ((current[field] - previous[field]) / previous[field]) * 100;
+    }
+
+    function getTrendSignal(rate) {
+        if (rate <= -3) return { text: '📉警示', class: 'warning' };
+        if (rate < 0 && rate > -3) return { text: '➖穩定', class: 'stable' };
+        if (rate >= 0 && rate <= 3) return { text: '➖穩定', class: 'stable' };
+        return { text: '🔥爆發', class: 'boom' };
+    }
+
+    let reachChart, engagementChart;
+
+    function renderDashboard() {
+        const allPosts = getAllPosts();
+        if (allPosts.length === 0) {
+            const emptyMsg = '<div class="card"><p>⚠️ 尚無資料，請先到「上傳資料」頁面上傳 CSV。</p></div>';
+            document.getElementById('recapText').innerHTML = emptyMsg;
+            document.getElementById('goalContainer').innerHTML = emptyMsg;
+            document.getElementById('rhythmLamps').innerHTML = emptyMsg;
+            document.getElementById('weightContainer').innerHTML = emptyMsg;
+            document.getElementById('coreMetrics').innerHTML = emptyMsg;
+            document.getElementById('leverageContainer').innerHTML = emptyMsg;
+            return;
+        }
+
+        const monthlyAgg = aggregateMonthlyByPlatform(allPosts);
+        const igMonthly = monthlyAgg.filter(m => m.platform === 'IG').sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
+        const fbMonthly = monthlyAgg.filter(m => m.platform === 'FB').sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
+
+        const lastMonth = monthlyAgg.length ? monthlyAgg.reduce((a,b)=>a.yearMonth > b.yearMonth ? a : b) : null;
+        let recapHtml = '';
+        if (lastMonth) {
+            const totalPosts = monthlyAgg.reduce((s,m)=>s+m.postCount,0);
+            const topPlatform = monthlyAgg.reduce((a,b)=>a.medianEngagementRate > b.medianEngagementRate ? a : b).platform;
+            const zeroPostPlats = monthlyAgg.filter(m=>m.postCount===0).map(m=>m.platform).join(',') || '無';
+            recapHtml = `<ul style="margin-left:20px;">
+                <li>📅 ${lastMonth.yearMonth} 總觸及: ${lastMonth.totalReach.toLocaleString()}</li>
+                <li>📊 發文總數: ${totalPosts} 篇</li>
+                <li>🏆 最高互動平台: ${topPlatform}</li>
+                <li>⚠️ 零貼文月份: ${zeroPostPlats}</li>
+            </ul>`;
+        } else { recapHtml = '暫無數據'; }
+        document.getElementById('recapText').innerHTML = recapHtml;
+
+        const igPosts = allPosts.filter(p => p.platform === 'IG');
+        const linePosts = allPosts.filter(p => p.platform === 'LINE');
+        const threadsPosts = allPosts.filter(p => p.platform === 'Threads');
+        const ytPosts = allPosts.filter(p => p.platform === 'YouTube');
+        const igFans = getLatestFollower('IG', igPosts);
+        const lineFans = getLatestFollower('LINE', linePosts);
+        const threadsFans = getLatestFollower('Threads', threadsPosts);
+        const ytFans = getLatestFollower('YouTube', ytPosts);
+        const goals = [
+            { name: 'IG 粉絲', current: igFans, target: 1500, unit: '' },
+            { name: 'LINE 社群', current: lineFans, target: 300, unit: '' },
+            { name: 'Threads 粉絲', current: threadsFans, target: 100, unit: '' },
+            { name: 'YouTube 追蹤', current: ytFans, target: 5, unit: '' }
+        ];
+        let goalHtml = '';
+        goals.forEach(g => {
+            const percent = Math.min(100, (g.current / g.target) * 100);
+            goalHtml += `<div class="goal-item">
+                <div><div class="goal-name">${g.name}</div><div class="goal-progress"><div class="goal-fill" style="width:${percent}%;"></div></div></div>
+                <div class="goal-value">${g.current.toLocaleString()} / ${g.target}</div>
+            </div>`;
+        });
+        document.getElementById('goalContainer').innerHTML = goalHtml;
+
+        const igComp = getMonthlyComparison('IG', monthlyAgg);
+        const fbComp = getMonthlyComparison('FB', monthlyAgg);
+        let igFansGrowth = 0, fbFansGrowth = 0;
+        if (igComp && igComp.prev) {
+            const prevFans = getLatestFollower('IG', allPosts.filter(p => p.platform==='IG' && p.date.getFullYear()===igComp.prev.year && p.date.getMonth()+1===igComp.prev.month));
+            const currFans = getLatestFollower('IG', allPosts.filter(p => p.platform==='IG' && p.date.getFullYear()===igComp.latest.year && p.date.getMonth()+1===igComp.latest.month));
+            igFansGrowth = prevFans ? ((currFans - prevFans)/prevFans)*100 : 0;
+        }
+        if (fbComp && fbComp.prev) {
+            const prevFans = getLatestFollower('FB', allPosts.filter(p => p.platform==='FB' && p.date.getFullYear()===fbComp.prev.year && p.date.getMonth()+1===fbComp.prev.month));
+            const currFans = getLatestFollower('FB', allPosts.filter(p => p.platform==='FB' && p.date.getFullYear()===fbComp.latest.year && p.date.getMonth()+1===fbComp.latest.month));
+            fbFansGrowth = prevFans ? ((currFans - prevFans)/prevFans)*100 : 0;
+        }
+        const coreHtml = `
+            <div class="dual-metric">
+                <div class="dual-item"><div class="platform">📱 IG</div>
+                    <div>月粉絲增長: ${igFansGrowth.toFixed(1)}% <span class="${getTrendSignal(igFansGrowth).class}">${getTrendSignal(igFansGrowth).text}</span></div>
+                    <div>觸及帳號: ${igComp ? calcGrowthRate(igComp.latest, igComp.prev, 'totalReach').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'totalReach')||0).class}">${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'totalReach')||0).text}</span></div>
+                    <div>互動率: ${igComp ? calcGrowthRate(igComp.latest, igComp.prev, 'medianEngagementRate').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'medianEngagementRate')||0).class}">${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'medianEngagementRate')||0).text}</span></div>
+                    <div>按讚率: ${igComp ? calcGrowthRate(igComp.latest, igComp.prev, 'medianLikeRate').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'medianLikeRate')||0).class}">${getTrendSignal(calcGrowthRate(igComp?.latest, igComp?.prev, 'medianLikeRate')||0).text}</span></div>
+                </div>
+                <div class="dual-item"><div class="platform">📘 FB</div>
+                    <div>月粉絲增長: ${fbFansGrowth.toFixed(1)}% <span class="${getTrendSignal(fbFansGrowth).class}">${getTrendSignal(fbFansGrowth).text}</span></div>
+                    <div>觸及帳號: ${fbComp ? calcGrowthRate(fbComp.latest, fbComp.prev, 'totalReach').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'totalReach')||0).class}">${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'totalReach')||0).text}</span></div>
+                    <div>互動率: ${fbComp ? calcGrowthRate(fbComp.latest, fbComp.prev, 'medianEngagementRate').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'medianEngagementRate')||0).class}">${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'medianEngagementRate')||0).text}</span></div>
+                    <div>按讚率: ${fbComp ? calcGrowthRate(fbComp.latest, fbComp.prev, 'medianLikeRate').toFixed(1) : 'N/A'}% <span class="${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'medianLikeRate')||0).class}">${getTrendSignal(calcGrowthRate(fbComp?.latest, fbComp?.prev, 'medianLikeRate')||0).text}</span></div>
+                </div>
+            </div>
+        `;
+        document.getElementById('coreMetrics').innerHTML = coreHtml;
+
+        const reachLabels = [...new Set([...igMonthly, ...fbMonthly].map(m=>m.yearMonth))].sort();
+        const igReachData = reachLabels.map(l => igMonthly.find(m=>m.yearMonth===l)?.totalReach || 0);
+        const fbReachData = reachLabels.map(l => fbMonthly.find(m=>m.yearMonth===l)?.totalReach || 0);
+        if (reachChart) reachChart.destroy();
+        const reachCtx = document.getElementById('reachTrendChart').getContext('2d');
+        reachChart = new Chart(reachCtx, {
+            type: 'line',
+            data: { labels: reachLabels, datasets: [{ label: 'IG 觸及', data: igReachData, borderColor: '#d9534f' }, { label: 'FB 觸及', data: fbReachData, borderColor: '#5bc0de' }] },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+
+        const igEngData = reachLabels.map(l => igMonthly.find(m=>m.yearMonth===l)?.medianEngagementRate || 0);
+        const fbEngData = reachLabels.map(l => fbMonthly.find(m=>m.yearMonth===l)?.medianEngagementRate || 0);
+        if (engagementChart) engagementChart.destroy();
+        const engCtx = document.getElementById('engagementTrendChart').getContext('2d');
+        engagementChart = new Chart(engCtx, {
+            type: 'line',
+            data: { labels: reachLabels, datasets: [{ label: 'IG 互動率 %', data: igEngData, borderColor: '#d9534f' }, { label: 'FB 互動率 %', data: fbEngData, borderColor: '#5bc0de' }] },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+
+        const platforms = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
+        let rhythmHtml = '';
+        for (let plat of platforms) {
+            const platPosts = allPosts.filter(p => p.platform === plat);
+            let maxGap = 0;
+            if (platPosts.length > 1) {
+                const dates = platPosts.map(p => new Date(p.date)).sort((a,b)=>a-b);
+                let prev = dates[0];
+                for (let i=1; i<dates.length; i++) {
+                    let diff = (dates[i] - prev) / (1000*3600*24);
+                    if (diff > maxGap) maxGap = diff;
+                    prev = dates[i];
+                }
+            }
+            const isRed = (maxGap >= 3) || (platPosts.length === 0);
+            rhythmHtml += `<div><i class="fab fa-${plat === 'YouTube' ? 'youtube' : plat.toLowerCase()}"></i> ${plat} <span class="lamp ${isRed ? 'lamp-red' : 'lamp-green'}"></span> ${isRed ? (platPosts.length===0 ? '無發文' : '空窗期≥3天') : '穩定'}</div>`;
+        }
+        document.getElementById('rhythmLamps').innerHTML = rhythmHtml;
+
+        const scores = [];
+        const weightPlatforms = ['IG', 'FB'];
+        for (let plat of weightPlatforms) {
+            const comp = plat === 'IG' ? igComp : fbComp;
+            if (!comp || !comp.prev) { scores.push({ plat, score: 0 }); continue; }
+            const growthFans = plat==='IG' ? igFansGrowth : fbFansGrowth;
+            const growthReach = calcGrowthRate(comp.latest, comp.prev, 'totalReach');
+            const growthEng = calcGrowthRate(comp.latest, comp.prev, 'medianEngagementRate');
+            const growthLike = calcGrowthRate(comp.latest, comp.prev, 'medianLikeRate');
+            const total = (growthFans + growthReach + growthEng + growthLike);
+            scores.push({ plat, score: total });
+        }
+        scores.sort((a,b)=>b.score - a.score);
+        let weightHtml = '';
+        scores.forEach(s => {
+            let percent = Math.min(100, Math.max(0, (s.score + 20) * 2));
+            weightHtml += `<div><i class="fab fa-${s.plat.toLowerCase()}"></i> ${s.plat} 權重分 ${s.score.toFixed(1)}<div class="weight-bar"><div class="weight-fill" style="width:${percent}%;"></div></div></div>`;
+        });
+        document.getElementById('weightContainer').innerHTML = weightHtml;
+
+        const currentMonth = monthlyAgg.length ? monthlyAgg.reduce((a,b)=>a.yearMonth>b.yearMonth?a:b).yearMonth : null;
+        let leverageHtml = '';
+        const allPlatforms = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
+        for (let plat of allPlatforms) {
+            const monthlyData = monthlyAgg.filter(m => m.platform === plat && m.yearMonth === currentMonth);
+            if (monthlyData.length) {
+                const leverage = monthlyData[0].totalReach / monthlyData[0].postCount;
+                leverageHtml += `<div><strong>${plat}</strong> 槓桿率 ${leverage.toFixed(1)} <canvas id="gauge_${plat}" class="gauge-canvas" width="80" height="40" style="width:80px;"></canvas></div>`;
+            } else {
+                leverageHtml += `<div><strong>${plat}</strong> 無當月數據</div>`;
+            }
+        }
+        document.getElementById('leverageContainer').innerHTML = leverageHtml;
+        setTimeout(() => {
+            for (let plat of allPlatforms) {
+                const monthlyData = monthlyAgg.filter(m => m.platform === plat && m.yearMonth === currentMonth);
+                if (monthlyData.length) {
+                    const leverage = monthlyData[0].totalReach / monthlyData[0].postCount;
+                    const canvas = document.getElementById(`gauge_${plat}`);
+                    if (canvas) drawMiniGauge(canvas, leverage, 5000);
+                }
+            }
+        }, 50);
+    }
+
+    function drawMiniGauge(canvas, value, max=5000) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        const centerX = w/2, centerY = h-6;
+        const radius = Math.min(w, h*2)*0.6;
+        const startAng = Math.PI, endAng = 0;
+        let ratio = Math.min(1, value / max);
+        let angle = Math.PI - ratio * Math.PI;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAng, endAng);
+        ctx.strokeStyle = '#e2e8e0';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, startAng, angle, true);
+        ctx.strokeStyle = '#7cb342';
+        ctx.stroke();
+        ctx.fillStyle = '#2c3e2f';
+        ctx.font = '10px Inter';
+        ctx.fillText(value.toFixed(0), centerX-12, centerY-8);
+    }
+
+    function updateSimulation() {
+        const simChannel = document.getElementById('channelSelect').value;
+        const posts = getPostsByChannel(simChannel);
+        if (posts.length < 3) {
+            document.getElementById('predictionResult').innerHTML = '⚠️ 歷史數據不足 (至少需3筆貼文)，無法進行線性預測。';
+            return;
+        }
+        const monthly = aggregateMonthlyByPlatform(posts).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
+        if (monthly.length < 2) {
+            document.getElementById('predictionResult').innerHTML = '⚠️ 歷史月份不足，無法預測。';
+            return;
+        }
+        const x = monthly.map((_,i)=>i+1);
+        const reachY = monthly.map(m=>m.totalReach);
+        const fansY = [];
+        for (let m of monthly) {
+            const monthPosts = posts.filter(p => p.date.getFullYear()===m.year && p.date.getMonth()+1===m.month);
+            const fans = getLatestFollower(simChannel, monthPosts);
+            fansY.push(fans);
+        }
+        const linearReg = (xArr, yArr) => {
+            const n = xArr.length;
+            let sumX=0, sumY=0, sumXY=0, sumX2=0;
+            for(let i=0;i<n;i++){ sumX+=xArr[i]; sumY+=yArr[i]; sumXY+=xArr[i]*yArr[i]; sumX2+=xArr[i]*xArr[i]; }
+            const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+            const intercept = (sumY - slope*sumX)/n;
+            return { slope, intercept };
+        };
+        const reachReg = linearReg(x, reachY);
+        const fansReg = linearReg(x, fansY);
+        const nextX = x.length + 1;
+        let predReach = reachReg.slope * nextX + reachReg.intercept;
+        let predFans = fansReg.slope * nextX + fansReg.intercept;
+        const postDelta = parseFloat(document.getElementById('postDelta').value);
+        const likeDelta = parseFloat(document.getElementById('likeDelta').value);
+        const shareDelta = parseFloat(document.getElementById('shareDelta').value);
+        predReach *= (1 + postDelta/100) * (1 + likeDelta/200) * (1 + shareDelta/200);
+        predFans += predReach * 0.005;
+        const ciLowerReach = predReach * 0.9, ciUpperReach = predReach * 1.1;
+        const ciLowerFans = predFans * 0.9, ciUpperFans = predFans * 1.1;
+        const target = 1500;
+        const goalRate = Math.min(100, (predFans/target)*100);
+        document.getElementById('predictionResult').innerHTML = `
+            <strong>線性回歸預測 (下個月) ±10% 信賴區間</strong><br>
+            ➤ 預估觸及: ${Math.round(predReach).toLocaleString()} (區間 ${Math.round(ciLowerReach).toLocaleString()} ~ ${Math.round(ciUpperReach).toLocaleString()})<br>
+            ➤ 預估淨增粉絲: ${Math.round(predFans - (fansY[fansY.length-1]||0))} (區間 ${Math.round(ciLowerFans - (fansY[fansY.length-1]||0))} ~ ${Math.round(ciUpperFans - (fansY[fansY.length-1]||0))})<br>
+            ➤ 預估月底粉絲數: ${Math.round(predFans)} / 目標 1500 (達成率 ${goalRate.toFixed(1)}%)<br>
+            <div class="confidence">※ 回歸模型使用歷史月份線性擬合，信賴區間 90%。</div>
+        `;
+    }
+
+    document.getElementById('postDelta').addEventListener('input', (e)=>{ document.getElementById('postDeltaVal').innerText=e.target.value; updateSimulation(); });
+    document.getElementById('likeDelta').addEventListener('input', (e)=>{ document.getElementById('likeDeltaVal').innerText=e.target.value; updateSimulation(); });
+    document.getElementById('shareDelta').addEventListener('input', (e)=>{ document.getElementById('shareDeltaVal').innerText=e.target.value; updateSimulation(); });
+    document.getElementById('channelSelect').addEventListener('change', () => { updateSimulation(); });
+
+    renderDashboard();
+    updateSimulation();
+</script>
+</body>
+</html>
