@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>發布達標沒 | 品牌增長</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { background:#eef5ea; font-family:'Inter',sans-serif; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        nav { background:white; border-radius:48px; padding:12px 24px; margin-bottom:32px; display:flex; gap:24px; flex-wrap:wrap; align-items:center; }
+        nav a { text-decoration:none; font-weight:600; color:#5a7452; padding:6px 12px; border-radius:40px; }
+        nav a.active { background:#7cb342; color:white; }
+        .card { background:white; border-radius:28px; padding:24px; margin-bottom:24px; }
+        .card-title { font-size:1.3rem; font-weight:700; margin-bottom:20px; border-left:4px solid #a5d6a5; padding-left:16px; }
+        .alert-day { display:inline-block; padding:8px; border-radius:12px; margin:4px; width:50px; text-align:center; }
+        .green { background:#e0f0d8; color:#3c6b2f; }
+        .red { background:#fae6e1; color:#ae5a41; }
+        .ip-stats { display:flex; gap:24px; flex-wrap:wrap; margin-top:16px; }
+        .ip-card { background:#fef9e6; border-radius:24px; padding:16px; flex:1; text-align:center; }
+        select { padding:8px 16px; border-radius:40px; border:1px solid #c5e0b4; background:white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav>
+        <a href="index.html">📁 上傳資料</a>
+        <a href="dashboard.html">📊 策略監測室</a>
+        <a href="check.html" class="active">✅ 發布達標沒</a>
+        <a href="funnel.html">📈 活動轉換漏斗</a>
+        <a href="audience.html">👥 客群分析後台</a>
+        <div style="margin-left:auto;">
+            <label>📢 渠道：</label>
+            <select id="channelSelect">
+                <option value="all">全部渠道</option>
+                <option value="IG">Instagram</option>
+                <option value="FB">Facebook</option>
+                <option value="LINE">LINE</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Threads">Threads</option>
+            </select>
+        </div>
+    </nav>
+    <div id="checkContent" class="card">載入中...</div>
+</div>
+<script>
+    function getPostsByChannel(channel) {
+        if (channel === 'all') {
+            const channels = ['IG','FB','LINE','YouTube','Threads'];
+            let all = [];
+            channels.forEach(ch => {
+                const raw = localStorage.getItem(`posts_${ch}`);
+                if (raw) all = all.concat(JSON.parse(raw));
+            });
+            return all;
+        }
+        const raw = localStorage.getItem(`posts_${channel}`);
+        return raw ? JSON.parse(raw) : [];
+    }
+
+    function renderCheck() {
+        const channel = document.getElementById('channelSelect').value;
+        const posts = getPostsByChannel(channel);
+        if (posts.length === 0) {
+            document.getElementById('checkContent').innerHTML = `<p>⚠️ 尚無「${channel}」數據，請先上傳。</p>`;
+            return;
+        }
+
+        let passCount = 0, failCount = 0;
+        posts.forEach(p => {
+            if (p.platform === 'IG' && p.views >= 1500 && p.likes >= 15) passCount++;
+            else if (p.platform === 'Threads' && p.views >= 100 && p.likes >= 5) passCount++;
+            else if (p.platform !== 'IG' && p.platform !== 'Threads') passCount++;
+            else failCount++;
+        });
+        const passRate = ((passCount/(passCount+failCount))*100).toFixed(0);
+
+        const ipPosts = posts.filter(p => p.hasIP === true);
+        const nonPosts = posts.filter(p => p.hasIP === false);
+        const calcAvgInteract = (arr) => {
+            if (!arr.length) return 0;
+            const total = arr.reduce((s,p)=>s+p.interactions,0);
+            const totalViews = arr.reduce((s,p)=>s+p.views,0);
+            return totalViews ? (total/totalViews)*100 : 0;
+        };
+        const ipInteract = calcAvgInteract(ipPosts);
+        const nonInteract = calcAvgInteract(nonPosts);
+        const premium = ipInteract > nonInteract ? ((ipInteract - nonInteract)/nonInteract*100).toFixed(0) : 0;
+
+        const html = `
+            <div class="card-title">📅 渠道達標狀況 (${channel === 'all' ? '全渠道' : channel})</div>
+            <div><strong>達標率</strong> : ${passCount} / ${passCount+failCount}  (${passRate}%)</div>
+            <div class="small-note" style="margin:12px 0;">IG標準: 觀看≥1500且讚≥15 ; Threads: 觀看≥100且讚≥5</div>
+            <hr style="margin:20px 0;">
+            <div class="card-title">✨ IP 效能分析</div>
+            <div class="ip-stats">
+                <div class="ip-card">有IP貼文互動率<br><strong>${ipInteract.toFixed(1)}%</strong></div>
+                <div class="ip-card">無IP貼文互動率<br><strong>${nonInteract.toFixed(1)}%</strong></div>
+                <div class="ip-card">IP 溢價<br><strong>+${premium}%</strong></div>
+            </div>
+        `;
+        document.getElementById('checkContent').innerHTML = html;
+    }
+
+    document.getElementById('channelSelect').addEventListener('change', renderCheck);
+    renderCheck();
+</script>
+</body>
+</html>
