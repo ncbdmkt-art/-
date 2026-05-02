@@ -634,12 +634,36 @@ function findChampions(allPosts) {
         if(html === '') html = '<div class="info-note">無足夠月份資料進行對比</div>';
         document.getElementById('leverageContainer').innerHTML = html;
     }
-    
-let html = '<div class="channel-recap-grid">';
+function renderChannelRecap(){
+        const platforms = ['IG','FB','LINE','YouTube','Threads'];
+        let channelData = [];
+        
+        // 抓出每個平台的最新月份資料
+        for(let p of platforms){
+            const platData = monthlyAggGlobal.filter(m => m.platform === p).sort((a,b) => b.yearMonth.localeCompare(a.yearMonth));
+            
+            if(platData.length > 0) {
+                const latestMonth = platData[0];
+                channelData.push({ 
+                    platform: p, 
+                    latestMonthStr: latestMonth.yearMonth, 
+                    postCount: latestMonth.postCount, 
+                    medianTraffic: latestMonth.medianTraffic, 
+                    engagementRate: latestMonth.medianEngagementRate 
+                });
+            } else { 
+                channelData.push({ platform: p, latestMonthStr: '無', postCount: 0, medianTraffic: 0, engagementRate: 0 });
+            }
+        }
+        
+        const activeChannels = channelData.filter(c => c.postCount > 0);
+        const minEng = activeChannels.length > 0 ? Math.min(...activeChannels.map(c => c.engagementRate)) : -1;
+        
+        let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
             const isLowest = (c.engagementRate === minEng && c.postCount > 0);
             
-            // 💡 根據平台，精準動態改變 UI 標籤名稱！
+            // 動態替換標籤
             let trafficLabel = '📊流量中位數';
             if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及帳號中位數';
             if (c.platform === 'YouTube') trafficLabel = '📺觀看次數中位數';
@@ -659,6 +683,9 @@ let html = '<div class="channel-recap-grid">';
                         ${c.postCount === 0 ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 暫無數據</span>' : (isLowest ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 最低互動率</span>' : '')}
                     </div>`;
         }
+        html += `<div class="info-note">🔔 最低互動率平台已高亮，數據顯示各平台「最新有發文月份」之表現。</div>`;
+        document.getElementById('recapText').innerHTML = html;
+    }
     
     function renderRhythmCards(){
         const platforms=['IG','FB','LINE','YouTube','Threads'];
