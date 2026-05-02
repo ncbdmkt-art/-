@@ -184,6 +184,7 @@
         .dict-item code { background: #eef3ea; padding: 2px 6px; border-radius: 6px; font-family: monospace; color: var(--status-up); font-weight: 600;}
     </style>
 </head>
+<body>
     <!-- ================= 指標定義字典彈出視窗 ================= -->
 <div id="dataDictModal" class="modal-overlay">
     <div class="modal-content">
@@ -215,7 +216,6 @@
         </div>
     </div>
 </div>
-<body>
 <div class="container">
     <nav>
         <a href="index.html">📁 上傳資料</a>
@@ -358,30 +358,6 @@
     let currentChannelMeta = { basePosts: 0, medianLike: 0, medianShare: 0, currentFans: 0 };
     let allPostsGlobal = [];
     let monthlyAggGlobal = []; // ✅ 集中儲存算好的月度數據，避免重複運算
-// ======================== 指標字典 Modal 互動事件 ========================
-    document.addEventListener('DOMContentLoaded', () => {
-        const modal = document.getElementById('dataDictModal');
-        const openBtn = document.getElementById('openDictBtn');
-        const closeBtn = document.getElementById('closeDictBtn');
-
-        // 打開 Modal
-        openBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            modal.classList.add('show');
-        });
-
-        // 點擊右上角 X 關閉
-        closeBtn.addEventListener('click', () => {
-            modal.classList.remove('show');
-        });
-
-        // 點擊黑色半透明背景也能關閉
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-            }
-        });
-    });
     // 🛡️ 資安小幫手：將危險的 HTML 標籤轉換成純文字符號
     function escapeHTML(str) {
         return String(str).replace(/[&<>'"]/g, 
