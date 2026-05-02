@@ -502,15 +502,14 @@ function aggregateMonthlyByPlatform(posts) {
         }
         return result;
     }
-
-    // ========== 1. 優化後核心指標區 renderCoreMetrics ==========
+// ========== 1. 優化後核心指標區 renderCoreMetrics ==========
     function renderCoreMetrics() {
         const targetPlatforms = ['IG', 'FB'];
         const platformNameMap = { IG: 'Instagram', FB: 'Facebook' };
         const iconMap = { IG: 'fa-instagram', FB: 'fa-facebook' };
         
         const formatChangeWithArrow = (currentVal, prevVal) => {
-            if (prevVal === undefined || prevVal === null || prevVal === 0) return '<span style="color:#aaa;"><i class="fas fa-minus-circle"></i> 持平</span>';
+            if (prevVal === undefined || prevVal === null || prevVal === 0) return '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
             const change = ((currentVal - prevVal) / prevVal) * 100;
             if (change > 0) return `<span class="trend-up"><i class="fas fa-arrow-up trend-icon"></i> +${change.toFixed(1)}%</span>`;
             if (change < 0) return `<span class="trend-down"><i class="fas fa-arrow-down trend-icon"></i> ${change.toFixed(1)}%</span>`;
@@ -526,35 +525,50 @@ function aggregateMonthlyByPlatform(posts) {
         
         let htmlOutput = '';
         for(let plat of targetPlatforms) {
-            // ✅ 使用 monthlyAggGlobal，不再重複運算
-            const comp = getMonthlyComparison(plat, monthlyAggGlobal);
-            let likeGrowth = 0, fansGrowth = 0, engRate = 0, reachGrowth = 0;
-            let prevLikeRate = 0, currLikeRate = 0, prevFans = 0, currFans = 0, prevReach = 0, currReach = 0, prevEng = 0;
-            let likeChangeHtml = '<span style="color:#aaa;">—</span>';
-            let fansChangeHtml = '<span style="color:#aaa;">—</span>';
-            let engChangeHtml = '<span style="color:#aaa;">—</span>';
-            let reachChangeHtml = '<span style="color:#aaa;">—</span>';
+            // 抓出該平台所有的月份資料，按時間由舊到新排序
+            const platData = monthlyAggGlobal.filter(m => m.platform === plat).sort((a,b) => a.yearMonth.localeCompare(b.yearMonth));
             
-            if(comp) {
-                prevLikeRate = comp.prev.totalLikes / comp.prev.totalReach || 0;
-                currLikeRate = comp.latest.totalLikes / comp.latest.totalReach || 0;
-                likeGrowth = prevLikeRate ? ((currLikeRate - prevLikeRate) / prevLikeRate) * 100 : 0;
-                
-                prevFans = getFollowerInMonth(plat, comp.prev.year, comp.prev.month, allPostsGlobal);
-                currFans = getLatestFollower(plat, allPostsGlobal);
-                fansGrowth = prevFans ? ((currFans - prevFans) / prevFans) * 100 : 0;
-                
-                prevReach = comp.prev.totalReach;
-                currReach = comp.latest.totalReach;
-                reachGrowth = prevReach ? ((currReach - prevReach) / prevReach) * 100 : 0;
-                
-                engRate = comp.latest.medianEngagementRate;
-                prevEng = comp.prev.medianEngagementRate;
-                
-                likeChangeHtml = prevLikeRate ? formatChangeWithArrow(currLikeRate, prevLikeRate) : likeChangeHtml;
-                fansChangeHtml = prevFans ? formatChangeWithArrow(currFans, prevFans) : fansChangeHtml;
-                engChangeHtml = prevEng ? formatChangeWithArrow(engRate, prevEng) : engChangeHtml;
-                reachChangeHtml = prevReach ? formatChangeWithArrow(currReach, prevReach) : reachChangeHtml;
+            let likeGrowth = 0, fansGrowth = 0, engRate = 0, reachGrowth = 0;
+            let likeChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
+            let fansChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
+            let engChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
+            let reachChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
+
+            if (platData.length > 0) {
+                // 取得最新一個月 (latest)
+                const latest = platData[platData.length - 1];
+                // 取得上一個月 (prev) (如果有)
+                const prev = platData.length > 1 ? platData[platData.length - 2] : null;
+
+                // --- 1. 至少要算出本月最新數值 ---
+                let currLikeRate = latest.totalReach > 0 ? (latest.totalLikes / latest.totalReach) * 100 : 0;
+                let currReach = latest.totalReach || 0;
+                engRate = latest.medianEngagementRate || 0;
+                let currFans = getLatestFollower(plat, allPostsGlobal) || 0;
+
+                // --- 2. 如果有上個月的數據，才進行增幅比對 ---
+                if (prev) {
+                    let prevLikeRate = prev.totalReach > 0 ? (prev.totalLikes / prev.totalReach) * 100 : 0;
+                    let prevReach = prev.totalReach || 0;
+                    let prevEng = prev.medianEngagementRate || 0;
+                    let prevFans = getFollowerInMonth(plat, prev.year, prev.month, allPostsGlobal) || 0;
+
+                    // 處理除以零的邊界防呆狀況
+                    likeGrowth = (prevLikeRate === 0 && currLikeRate > 0) ? 100 : (prevLikeRate ? ((currLikeRate - prevLikeRate) / prevLikeRate) * 100 : 0);
+                    fansGrowth = (prevFans === 0 && currFans > 0) ? 100 : (prevFans ? ((currFans - prevFans) / prevFans) * 100 : 0);
+                    reachGrowth = (prevReach === 0 && currReach > 0) ? 100 : (prevReach ? ((currReach - prevReach) / prevReach) * 100 : 0);
+
+                    likeChangeHtml = formatChangeWithArrow(currLikeRate, prevLikeRate);
+                    fansChangeHtml = formatChangeWithArrow(currFans, prevFans);
+                    engChangeHtml = formatChangeWithArrow(engRate, prevEng);
+                    reachChangeHtml = formatChangeWithArrow(currReach, prevReach);
+                } else {
+                    // 如果只有單月份資料
+                    likeChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
+                    fansChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
+                    engChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
+                    reachChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
+                }
             }
             
             const formatMainVal = (val) => val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1);
