@@ -200,50 +200,68 @@
     function mapPostFromRow(row, fallbackChannel) {
         const normalized = normalizeRowKeys(row);
         
-        // 優先抓取日期欄位 : 發佈日期 / date / 貼文日期
-        let dateValue = normalized['發佈日期'] || normalized['date'] || normalized['貼文日期'] || null;
-        let date = dateValue ? parseDate(dateValue) : null;
+        // 1️⃣ 日期前置清洗：抓取日期欄位並洗掉中文或多餘文字
+        let rawDateValue = normalized['發佈日期'] || normalized['date'] || normalized['貼文日期'] || null;
+        if (rawDateValue && typeof rawDateValue === 'string') {
+            // 只保留數字、斜線、破折號與空白，例如將「發布日期2025-08-05」洗成「2025-08-05」
+            rawDateValue = rawDateValue.replace(/[^\d\/\-\s]/g, ''); 
+        }
+        let date = rawDateValue ? parseDate(rawDateValue) : null;
         
-        // 若日期無效，詳細記錄（方便使用者偵錯）
         if (!date) {
-            console.warn(`⚠️ 日期解析失敗，原始值: "${dateValue}"，清理後字串: "${dateValue ? String(dateValue).replace(/\s+/g, '') : 'null'}"`);
+            console.warn(`⚠️ 日期解析失敗，原始值: "${normalized['發佈日期'] || 'null'}"`);
             return null;
         }
         
-        // 平台判讀：優先使用「發布管道」欄位，若無則使用 fallbackChannel (來自檔名)
+        // 2️⃣ 平台判讀
         let platform = normalized['發布管道'] || normalized['platform'] || '';
         if (!platform && fallbackChannel) platform = fallbackChannel;
         if (!platform) {
-            console.warn(`⚠️ 缺少平台資訊，日期: ${date.toISOString()}, 可用的欄位: ${Object.keys(normalized).slice(0,5).join(',')}`);
+            console.warn(`⚠️ 缺少平台資訊，日期: ${date.toISOString()}`);
             return null;
         }
         
-        // 強化版數值清洗器：自動剔除千分位逗號與百分比符號
+        // 3️⃣ 強化版數值清洗器 (已內建處理 , 和 %)
         const toNumber = (val) => {
-            // 1. 防呆：如果是空值、未定義，直接回傳 0
             if (val === undefined || val === null || val === '') return 0;
-            
-            // 2. 強制轉成字串並去除前後空白
             let strVal = String(val).trim();
-            
-            // 3. 處理無效符號 (防呆)
             if (strVal === '-' || strVal === 'N/A') return 0;
-
-            // 4. 洗掉「千分位逗號」 (將 "1,139" 變成 "1139")
             strVal = strVal.replace(/,/g, '');
-
-            // 5. 判斷並拔除百分比符號 (將 "5.66%" 變成 "5.66")
             if (strVal.includes('%')) {
                 strVal = strVal.replace(/%/g, '');
-                // 註：若你需要將 5.66% 轉成數學上的 0.0566，可以改成 return parseFloat(strVal) / 100;
-                // 這裡預設保留 5.66 供儀表板直接顯示
             }
-
-            // 6. 轉換成支援小數點的浮點數
             let num = parseFloat(strVal);
-            
             return isNaN(num) ? 0 : num;
         };
+        
+        // 4️⃣ 對映並回傳乾淨的物件
+        // CSV 對應欄位：觀看數, 互動數, 點讚數, 分享數, 儲存數, 非粉絲比例...
+        let views = toNumber(normalized['觀看數'] ?? normalized['觸及帳號'] ?? normalized['views']);
+        let likes = toNumber(normalized['點讚數'] ?? normalized['likes']);
+        let shares = toNumber(normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['shares']);
+        let saves = toNumber(normalized['儲存數'] ?? normalized['saves']);
+        let interactions = toNumber(normalized['互動數'] ?? normalized['interactions']);
+        let nonFansPercent = toNumber(normalized['非粉絲比例'] ?? normalized['nonfanspercent']);
+        
+        let hasIP = (normalized['標籤'] && /ip/i.test(normalized['標籤'])) || 
+                    (normalized['活動主題'] && /ip/i.test(normalized['活動主題']));
+        
+        return {
+            date, 
+            platform: String(platform), 
+            type: String(normalized['專案類型'] || normalized['格式'] || ''),
+            title: String(normalized['活動主題'] || normalized['串文名稱'] || '無標題'),
+            views, 
+            likes, 
+            shares, 
+            saves, 
+            interactions, 
+            nonFansPercent, 
+            hasIP, 
+            retentionRate: 0, 
+            raw: row
+        };
+    }
         };
         
         let views = toNumber(normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'] ?? 0);
