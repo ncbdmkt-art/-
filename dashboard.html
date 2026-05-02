@@ -209,12 +209,13 @@
         <div class="left-column">
             <div class="card recap-card"><div class="card-title">📆 每月渠道現狀 Recap </div><div id="recapText">載入中...</div></div>
             <div class="card"><div class="card-title">⏱️ 發布節奏穩定度</div><div id="rhythmLamps" class="rhythm-grid"></div></div>
-            <div class="card">
+        <div class="card">
                 <div class="card-title">🎯 戰略目標總覽</div>
                 <div class="deadline-bar">
                     <label><i class="far fa-calendar-alt"></i> 目標期限：</label>
                     <input type="date" id="customTargetDate" value="2026-12-31" style="padding:6px 12px; border-radius:32px; border:1px solid #c5e0b4;">
                     <span class="deadline-remain">⏳ <span id="targetDaysRemaining">0</span> 天後到期</span>
+                    <span class="deadline-remain" id="targetDaysRemaining">⏳ 計算中...</span>
                 </div>
                 <div id="goalsContainer"></div>
             </div>
@@ -879,16 +880,40 @@ function renderLeverage() {
         document.getElementById('predictionResult').innerHTML = `♟️ 策略組合：貼文 ${postDelta>=0?'+'+postDelta:postDelta}篇/月｜按讚 ${likeDelta>=0?'+'+likeDelta:likeDelta}/篇｜分享 ${shareDelta>=0?'+'+shareDelta:shareDelta}/篇<br>📢 預估流量: ${Math.round(finalPredReach).toLocaleString()}<br>♥️ 淨增粉絲: ${netGain.toLocaleString()}<br>➤ 預估粉絲總數: ${predictedFans.toLocaleString()}`;
     }
     
-    function updateDeadlineAndRedraw() {
+function updateDeadlineAndRedraw() {
         const datePicker = document.getElementById('customTargetDate');
-        if(datePicker){
+        const remainSpan = document.getElementById('targetDaysRemaining');
+        
+        if(datePicker && remainSpan){
+            // 取得選取的日期
             const selectedDate = new Date(datePicker.value);
             if(!isNaN(selectedDate.getTime())) targetDate = selectedDate;
-            const today = new Date(); today.setHours(0,0,0,0);
-            const targetDay = new Date(targetDate); targetDay.setHours(0,0,0,0);
-            const diffDays = Math.ceil((targetDay - today) / (1000*3600*24));
-            document.getElementById('targetDaysRemaining').innerText = diffDays >=0 ? diffDays : `已過期 ${Math.abs(diffDays)} 天`;
-            renderReachChart();
+            
+            // 取得今天日期，並將時間歸零 (只比對日期)
+            const today = new Date(); 
+            today.setHours(0,0,0,0);
+            
+            const targetDay = new Date(targetDate); 
+            targetDay.setHours(0,0,0,0);
+            
+            // 計算相差天數
+            const diffTime = targetDay - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // 動態改變顯示文字與樣式
+            if (diffDays > 0) {
+                remainSpan.innerHTML = `⏳ 剩餘 <strong>${diffDays}</strong> 天`;
+                remainSpan.style.color = 'var(--primary-text)';
+            } else if (diffDays === 0) {
+                remainSpan.innerHTML = `⏳ <strong>今天到期！</strong>`;
+                remainSpan.style.color = '#e65100'; // 橘色提醒
+            } else {
+                remainSpan.innerHTML = `⚠️ 已過期 <strong>${Math.abs(diffDays)}</strong> 天`;
+                remainSpan.style.color = '#c62828'; // 紅色警告
+            }
+            
+            // 同步更新右側依賴此日期的「觸及理想斜率圖表」
+            if(typeof renderReachChart === 'function') renderReachChart();
         }
     }
     
