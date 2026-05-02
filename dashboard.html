@@ -796,11 +796,11 @@ function renderLeverage() {
         let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
             const isLowest = (c.engagementRate === minEng && c.postCount > 0);
-            let trafficLabel = '📊流量中位數';
-            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及帳號中位數';
-            if (c.platform === 'YouTube') trafficLabel = '📺觀看次數中位數';
-            if (c.platform === 'LINE') trafficLabel = '🗳️投票人數中位數';
-            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看中位數';
+            let trafficLabel = '📊流量MID';
+            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及MID';
+            if (c.platform === 'YouTube') trafficLabel = '📺觀看MID';
+            if (c.platform === 'LINE') trafficLabel = '🗳️投票MID';
+            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看MID';
             
             html += `<div class="channel-recap-item ${isLowest ? 'lowest-interact' : ''}">
                         <div class="chan-name"><i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}<span style="font-size:0.7rem; color:#888; margin-left:8px;">(${c.latestMonthStr})</span></div>
