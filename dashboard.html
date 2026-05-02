@@ -686,7 +686,7 @@ function renderLeverage() {
             const latest = data[data.length-1];
             const prev = data[data.length-2];
             
-            // ✅ 修正點 1：動態判斷基數，Threads 使用 totalViews，其餘使用 totalReach
+            // 判斷基數，Threads 使用 totalViews，其餘使用 totalReach
             const latestBaseTraffic = (plat === 'Threads') ? latest.totalViews : latest.totalReach;
             const prevBaseTraffic = (plat === 'Threads') ? prev.totalViews : prev.totalReach;
             
@@ -701,23 +701,39 @@ function renderLeverage() {
             const changeIcon = (val) => val>0 ? '<span class="trend-up">▲</span>' : (val<0 ? '<span class="trend-down">▼</span>' : '●');
             const changeColor = (val) => val>0 ? 'trend-up' : (val<0 ? 'trend-down' : '');
             
-            // ✅ 修正點 2：動態標籤名稱
-            const leverageLabel = (plat === 'Threads') ? '📊 觀看槓桿率' : '📊 觸及槓桿率';
-            
             html += `<div style="margin-top:12px;"><strong><i class="fab fa-${plat==='YouTube'?'youtube':plat.toLowerCase()}"></i> ${plat}</strong></div>`;
-            html += `<div class="lever-row"><span>${leverageLabel}</span><span>${Math.round(latestReachPerPost).toLocaleString()} 次/篇 <span class="lever-change ${changeColor(reachChange)}">${changeIcon(reachChange)} ${reachChange>0?'+':''}${reachChange.toFixed(1)}%</span></span></div>`;
             
+            // 🎯 針對 Threads 與其他平台，給予不同的「流量槓桿率」排版與說明
+            if (plat === 'Threads') {
+                html += `<div class="lever-row" style="align-items: flex-start;">
+                            <div style="display:flex; flex-direction:column;">
+                                <span>📊 觀看槓桿率</span>
+                                <span style="font-size:0.7rem; color:#888; margin-top:4px;">該月母串觀看總數 ÷ 該月篇數</span>
+                            </div>
+                            <span style="margin-top:2px;">${Math.round(latestReachPerPost).toLocaleString()} 次/篇 <span class="lever-change ${changeColor(reachChange)}">${changeIcon(reachChange)} ${reachChange>0?'+':''}${reachChange.toFixed(1)}%</span></span>
+                         </div>`;
+            } else {
+                html += `<div class="lever-row">
+                            <span>📊 觸及槓桿率</span>
+                            <span>${Math.round(latestReachPerPost).toLocaleString()} 次/篇 <span class="lever-change ${changeColor(reachChange)}">${changeIcon(reachChange)} ${reachChange>0?'+':''}${reachChange.toFixed(1)}%</span></span>
+                         </div>`;
+            }
+            
+            // 互動槓桿率 (IG 與 Threads 共用)
             if(plat === 'IG' || plat === 'Threads') {
                 html += `<div class="lever-row"><span>💬 互動槓桿率</span><span>${Math.round(latestInteractPerPost)} 互動/篇 <span class="lever-change ${changeColor(interactChange)}">${changeIcon(interactChange)} ${interactChange>0?'+':''}${interactChange.toFixed(1)}%</span></span></div>`;
             }
+            
+            // 🎯 Threads 專屬：非粉絲佔比 (加入詳細計算邏輯說明)
             if(plat === 'Threads') {
                 const nonFansRatio = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.nonFansPercent || 0), 0) / latest.posts.length) : 0;
-                // ✅ 修正點 3：Threads 特有的母串觀看數 (已在 Leverage 第一行處理，保留這行做參考或移除皆可，目前先幫你保留原始邏輯但精簡化)
-                const threadView = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.views || 0), 0) / latest.posts.length) : 0;
-                
-                html += `<div class="lever-row"><span>📢 非粉絲佔比</span><span>${nonFansRatio.toFixed(1)}%</span></div>`;
-                // 因為上面已經把「觸及槓桿率」改成「觀看槓桿率」了，底下這行其實重複了，但我先保留，你可以看畫面決定要不要刪除最後一行 <div>
-                html += `<div class="lever-row"><span>🔗 母串觀看數</span><span>${Math.round(threadView).toLocaleString()} 次/篇</span></div>`;
+                html += `<div class="lever-row" style="align-items: flex-start;">
+                            <div style="display:flex; flex-direction:column; max-width: 250px;">
+                                <span>📢 非粉絲佔比</span>
+                                <span style="font-size:0.7rem; color:#888; margin-top:4px; line-height:1.4;">(該月各篇非粉%) ÷ 該月篇數<br>反映的是「每篇貼文的平均出圈機率」，而不是「總流量的絕對非粉池」。</span>
+                            </div>
+                            <span style="margin-top:2px;">${nonFansRatio.toFixed(1)}%</span>
+                         </div>`;
             }
         }
         if(html === '') html = '<div class="info-note">無足夠月份資料進行對比</div>';
