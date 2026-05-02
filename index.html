@@ -219,11 +219,32 @@
             return null;
         }
         
-        // 數值欄位 (處理空字串或非數字)
+        // 強化版數值清洗器：自動剔除千分位逗號與百分比符號
         const toNumber = (val) => {
-            if (val === undefined || val === null) return 0;
-            let num = Number(val);
+            // 1. 防呆：如果是空值、未定義，直接回傳 0
+            if (val === undefined || val === null || val === '') return 0;
+            
+            // 2. 強制轉成字串並去除前後空白
+            let strVal = String(val).trim();
+            
+            // 3. 處理無效符號 (防呆)
+            if (strVal === '-' || strVal === 'N/A') return 0;
+
+            // 4. 洗掉「千分位逗號」 (將 "1,139" 變成 "1139")
+            strVal = strVal.replace(/,/g, '');
+
+            // 5. 判斷並拔除百分比符號 (將 "5.66%" 變成 "5.66")
+            if (strVal.includes('%')) {
+                strVal = strVal.replace(/%/g, '');
+                // 註：若你需要將 5.66% 轉成數學上的 0.0566，可以改成 return parseFloat(strVal) / 100;
+                // 這裡預設保留 5.66 供儀表板直接顯示
+            }
+
+            // 6. 轉換成支援小數點的浮點數
+            let num = parseFloat(strVal);
+            
             return isNaN(num) ? 0 : num;
+        };
         };
         
         let views = toNumber(normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'] ?? 0);
