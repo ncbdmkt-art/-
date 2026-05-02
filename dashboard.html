@@ -153,6 +153,37 @@
         .dict-item code { background: #eef3ea; padding: 2px 6px; border-radius: 6px; font-family: monospace; color: var(--status-up); font-weight: 600;}
     </style>
 </head>
+    <!-- ================= 指標定義字典彈出視窗 ================= -->
+<div id="dataDictModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-book-open"></i> 資料指標定義字典 (Data Dictionary)</h2>
+            <button class="close-btn" id="closeDictBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="dict-item">
+                <h4>1. 觸及與觀看的分野 (Reach vs. Views)</h4>
+                <p>為符合各平台原生特性，系統自動分流：<strong>IG、FB</strong> 統一採用「觸及數 (Reach)」；<strong>YouTube、Threads</strong> 採用「觀看/瀏覽數 (Views)」。</p>
+            </div>
+            <div class="dict-item">
+                <h4>2. 互動率「中位數」邏輯 (Median Engagement Rate)</h4>
+                <p>本儀表板的互動率採「中位數 (Median)」而非單純平均數。此設計可排除「單篇極端爆紅」或「極差貼文」的數值干擾，最真實地反映帳號「日常發文的標準體質」。</p>
+            </div>
+            <div class="dict-item">
+                <h4>3. YouTube 專屬互動率公式</h4>
+                <p>有別於其他平台的 <code>(互動 ÷ 觸及)</code>，YouTube 互動率採用更嚴格的 <code>(點讚 + 留言 + 分享) ÷ 頻道訂閱者數</code>，藉此衡量核心粉絲的真實黏著度與活耀度。</p>
+            </div>
+            <div class="dict-item">
+                <h4>4. 內容槓桿率 (Content Leverage)</h4>
+                <p>公式：<code>當月總觸及(或觀看) ÷ 當月貼文總篇數</code>。此指標用於衡量「每一發子彈的平均流量產值」，協助判斷當月流量是來自「貼文品質提升」還是單純「爆肝狂發文」。</p>
+            </div>
+            <div class="dict-item">
+                <h4>5. 預測模擬器運算邏輯 (Linear Regression)</h4>
+                <p>依據頻道過去幾個月的歷史觸及趨勢，進行「線性迴歸」數學運算得出基準預測值；並結合系統常數 <code>0.008</code> (即千分之八的觸及轉粉率)，動態推算年底的預估粉絲數與達標機率。</p>
+            </div>
+        </div>
+    </div>
+</div>
 <body>
 <div class="container">
     <nav>
@@ -161,6 +192,7 @@
         <a href="check.html">✅ 發布達標沒</a>
         <a href="funnel.html">📈 活動轉換漏斗</a>
         <a href="audience.html">👥 客群分析後台</a>
+        <a href="#" id="openDictBtn" style="margin-left: auto; background: #eef3ea; color: var(--primary-text); border: 1px solid var(--border-light);"><i class="fas fa-book"></i> 指標定義說明</a>
     </nav>
 
     <div class="dashboard-layout">
@@ -218,7 +250,30 @@
     let currentChannelMeta = { basePosts: 0, medianLike: 0, medianShare: 0, currentFans: 0 };
     let allPostsGlobal = [];
     let monthlyAggGlobal = []; // ✅ 集中儲存算好的月度數據，避免重複運算
+// ======================== 指標字典 Modal 互動事件 ========================
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('dataDictModal');
+        const openBtn = document.getElementById('openDictBtn');
+        const closeBtn = document.getElementById('closeDictBtn');
 
+        // 打開 Modal
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.add('show');
+        });
+
+        // 點擊右上角 X 關閉
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('show');
+        });
+
+        // 點擊黑色半透明背景也能關閉
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+            }
+        });
+    });
     // 🛡️ 資安小幫手：將危險的 HTML 標籤轉換成純文字符號
     function escapeHTML(str) {
         return String(str).replace(/[&<>'"]/g, 
