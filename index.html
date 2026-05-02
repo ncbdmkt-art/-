@@ -84,7 +84,7 @@
     .small-note { font-size: 0.75rem; color: var(--primary-dark); margin-top: 8px; }
     
     .debug-tip { background: var(--status-warn-bg); border-left: 4px solid var(--status-warn-border); padding: 8px 12px; margin-top: 12px; font-size: 0.7rem; border-radius: 12px; }
-</style>
+    </style>
 </head>
 <body>
 <div class="container">
@@ -129,27 +129,25 @@
 </div>
 
 <script>
+    // ======================== 🛡️ UI 安全小幫手 ========================
+    // 汰換危險的 innerHTML +=，改用原生的 textContent 來防止 XSS 攻擊
+    function appendStatusMessage(container, message, type = 'success') {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = type; 
+        msgDiv.textContent = message; 
+        container.appendChild(msgDiv);
+    }
+
     // ======================== 🔧 強化版日期解析（核心修復） ========================
-    /**
-     * 解析日期，支援下列格式：
-     * - 標準日期字串 (new Date 可解析)
-     * - 含中間空格的日期如 "2025/08/ 05" 、 "2025/08 /05" 、 "2025/ 08/05"
-     * - 全形空格或各式空白
-     * - Excel 序列號 (數字)
-     * - 中文年月日格式 (2024年12月1日)
-     */
     function parseDate(value) {
         if (!value) return null;
         
-        // 1️⃣ 轉為字串，並移除「所有空白字元」(包含空格、全型空白、tab、換行等)
         let cleaned = String(value).replace(/\s+/g, '');
         if (cleaned === '') return null;
         
-        // 2️⃣ 嘗試標準 Date 建構 (大部分瀏覽器對 yyyy/mm/dd 支援良好)
         let d = new Date(cleaned);
         if (!isNaN(d.getTime())) return d;
         
-        // 3️⃣ 匹配 yyyy/mm/dd 或 yyyy-mm-dd (移除空白後的正則)
         let match = cleaned.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
         if (match) {
             let year = match[1];
@@ -160,7 +158,6 @@
             if (!isNaN(parsed.getTime())) return parsed;
         }
         
-        // 4️⃣ 處理中文格式：2024年12月1日 或 2024/12月1日 等 (先移除空白再匹配)
         let chineseMatch = cleaned.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
         if (chineseMatch) {
             let year = chineseMatch[1];
@@ -170,13 +167,11 @@
             if (!isNaN(parsed.getTime())) return parsed;
         }
         
-        // 5️⃣ 嘗試 Excel 序列號 (數字)
         if (!isNaN(Number(cleaned))) {
             let excelDate = new Date((Number(cleaned) - 25569) * 86400000);
             if (!isNaN(excelDate.getTime())) return excelDate;
         }
         
-        // 6️⃣ 最後一搏：嘗試用原始值 (未去除空白前) 進行 Date 解析，但通常已處理過
         let lastTry = new Date(value);
         if (!isNaN(lastTry.getTime())) return lastTry;
         
@@ -189,7 +184,6 @@
         for (let [key, val] of Object.entries(row)) {
             if (val === undefined || val === null) continue;
             let cleanKey = String(key).trim().toLowerCase();
-            // 移除全形/半形括號影響
             cleanKey = cleanKey.replace(/[（(]/g, '(').replace(/[）)]/g, ')');
             normalized[cleanKey] = val;
         }
@@ -199,10 +193,8 @@
     function mapPostFromRow(row, fallbackChannel) {
         const normalized = normalizeRowKeys(row);
         
-        // 1️⃣ 日期前置清洗：抓取日期欄位並洗掉中文或多餘文字
         let rawDateValue = normalized['發佈日期'] || normalized['date'] || normalized['貼文日期'] || null;
         if (rawDateValue && typeof rawDateValue === 'string') {
-            // 只保留數字、斜線、破折號與空白，例如將「發布日期2025-08-05」洗成「2025-08-05」
             rawDateValue = rawDateValue.replace(/[^\d\/\-\s]/g, ''); 
         }
         let date = rawDateValue ? parseDate(rawDateValue) : null;
@@ -212,7 +204,6 @@
             return null;
         }
         
-        // 2️⃣ 平台判讀
         let platform = normalized['發布管道'] || normalized['platform'] || '';
         if (!platform && fallbackChannel) platform = fallbackChannel;
         if (!platform) {
@@ -220,7 +211,6 @@
             return null;
         }
         
-        // 3️⃣ 強化版數值清洗器 (已內建處理 , 和 %)
         const toNumber = (val) => {
             if (val === undefined || val === null || val === '') return 0;
             let strVal = String(val).trim();
@@ -233,8 +223,6 @@
             return isNaN(num) ? 0 : num;
         };
         
-        // 4️⃣ 對映並回傳乾淨的物件
-        // CSV 對應欄位：觀看數, 互動數, 點讚數, 分享數, 儲存數, 非粉絲比例...
         let views = toNumber(normalized['觀看數'] ?? normalized['觸及帳號'] ?? normalized['views']);
         let likes = toNumber(normalized['點讚數'] ?? normalized['likes']);
         let shares = toNumber(normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['shares']);
@@ -261,27 +249,6 @@
             raw: row
         };
     }
-        
-        let views = toNumber(normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'] ?? 0);
-        let likes = toNumber(normalized['點讚數'] ?? normalized['likes'] ?? 0);
-        let shares = toNumber(normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['reposts'] ?? normalized['shares'] ?? 0);
-        let saves = toNumber(normalized['儲存數'] ?? normalized['saves'] ?? 0);
-        let interactions = toNumber(normalized['互動數'] ?? normalized['interactions'] ?? 0);
-        let nonFansPercent = toNumber(normalized['非粉絲比例'] ?? normalized['nonfanspercent'] ?? 0);
-        
-        // IP 標籤偵測
-        let hasIP = (normalized['標籤'] && /ip/i.test(normalized['標籤'])) || 
-                    (normalized['活動主題'] && /ip/i.test(normalized['活動主題']));
-        
-        return {
-            date, 
-            platform: String(platform), 
-            type: String(normalized['專案類型'] || normalized['format'] || ''),
-            title: String(normalized['串文名稱'] || normalized['活動主題'] || '無標題'),
-            views, likes, shares, saves, interactions, nonFansPercent, hasIP, 
-            retentionRate: 0, 
-            raw: row
-        };
 
     function parseCSVtoPosts(jsonRows, channel) {
         const posts = [];
@@ -312,7 +279,6 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(sheet);
-                    // 對每個物件的字串值進行前置 trim (避免欄位值前後空白影響判定，但主要日期修復在 parseDate)
                     const cleanedJson = json.map(row => {
                         const newRow = {};
                         for (let [k, v] of Object.entries(row)) {
@@ -360,7 +326,7 @@
                 for (let file of files) {
                     const channel = sections[0].getChannel(file.name);
                     if (!channel) {
-                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含 IG/FB/LINE/YouTube/Threads 關鍵字，已略過。</div>`;
+                        appendStatusMessage(statusDiv, `❌ ${file.name} : 檔名未包含 IG/FB/LINE/YouTube/Threads 關鍵字，已略過。`, 'error');
                         hasError = true;
                         continue;
                     }
@@ -370,23 +336,17 @@
                         console.log(`📄 解析檔案: ${file.name}，欄位樣本:`, Object.keys(jsonRows[0] || {}).slice(0,6));
                         const posts = parseCSVtoPosts(jsonRows, channel);
                         if (posts.length === 0) {
-                            const sampleRow = jsonRows[0] || {};
-                            const hasDateCol = sampleRow['發佈日期'] || sampleRow['date'] || sampleRow['貼文日期'];
-                            const hasPlatformCol = sampleRow['發布管道'] || sampleRow['platform'];
-                            let reason = '';
-                            if (!hasDateCol) reason = '缺少「發佈日期」或「date」欄位；';
-                            if (!hasPlatformCol && !channel) reason += '缺少「發布管道」欄位且檔名無法判別平台；';
-                            if (!hasDateCol && !hasPlatformCol) reason = '欄位不符合預期格式 (需包含發佈日期, 發布管道)。';
-                            throw new Error(`無法解析出有效貼文。 ${reason} 請檢查CSV欄位名稱。`);
+                            throw new Error(`無法解析出有效貼文。請檢查CSV欄位名稱。`);
                         }
                         const key = `posts_${channel}`;
                         let existing = JSON.parse(localStorage.getItem(key) || '[]');
                         existing = existing.concat(posts);
                         localStorage.setItem(key, JSON.stringify(existing));
-                        statusDiv.innerHTML += `<div class="success">✅ ${file.name} → ${channel} (成功匯入 ${posts.length} 筆貼文)</div>`;
+                        
+                        appendStatusMessage(statusDiv, `✅ ${file.name} → ${channel} (成功匯入 ${posts.length} 筆貼文)`, 'success');
                     } catch (err) {
                         console.error(`處理檔案 ${file.name} 錯誤:`, err);
-                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
+                        appendStatusMessage(statusDiv, `❌ ${file.name} 解析失敗: ${err.message}`, 'error');
                         hasError = true;
                     }
                 }
@@ -412,7 +372,8 @@
                 ['IG', 'FB', 'LINE', 'YouTube', 'Threads'].forEach(ch => localStorage.removeItem(`posts_${ch}`));
                 sections[0].updateDisplay();
                 const statusDiv = document.getElementById('socialStatus');
-                statusDiv.innerHTML = '<div class="success">🗑️ 已清空所有社群資料</div>';
+                statusDiv.innerHTML = '';
+                appendStatusMessage(statusDiv, '🗑️ 已清空所有社群資料', 'success');
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         },
@@ -428,7 +389,7 @@
             processFiles: async (files, statusDiv, updateDisplayFn) => {
                 for (let file of files) {
                     if (!sections[1].isValidFile(file.name)) {
-                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} : 檔名未包含「回饋表單」或「feedback」，已略過。</div>`;
+                        appendStatusMessage(statusDiv, `❌ ${file.name} : 檔名未包含「回饋表單」或「feedback」，已略過。`, 'error');
                         continue;
                     }
                     try {
@@ -437,10 +398,11 @@
                         let existing = JSON.parse(localStorage.getItem('feedbackData') || '[]');
                         existing = existing.concat(rows);
                         localStorage.setItem('feedbackData', JSON.stringify(existing));
-                        statusDiv.innerHTML += `<div class="success">✅ ${file.name} (匯入 ${rows.length} 筆回饋)</div>`;
+                        
+                        appendStatusMessage(statusDiv, `✅ ${file.name} (匯入 ${rows.length} 筆回饋)`, 'success');
                     } catch (err) {
                         console.error(err);
-                        statusDiv.innerHTML += `<div class="error">❌ ${file.name} 解析失敗: ${err.message}</div>`;
+                        appendStatusMessage(statusDiv, `❌ ${file.name} 解析失敗: ${err.message}`, 'error');
                     }
                 }
                 if (updateDisplayFn) updateDisplayFn();
@@ -457,7 +419,8 @@
                 localStorage.removeItem('feedbackData');
                 sections[1].updateDisplay();
                 const statusDiv = document.getElementById('feedbackStatus');
-                statusDiv.innerHTML = '<div class="success">🗑️ 已清空回饋數據</div>';
+                statusDiv.innerHTML = '';
+                appendStatusMessage(statusDiv, '🗑️ 已清空回饋數據', 'success');
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         }
@@ -470,19 +433,11 @@
         const statusDiv = document.getElementById(section.statusId);
         const clearBtn = document.getElementById(section.clearBtnId);
         
-        // 為了避免閉包問題，建立一個更新顯示的函數
         const refreshDisplay = () => section.updateDisplay();
         
-        // 封裝處理函數，自動更新顯示
         const handleFiles = (files) => {
             if (!files.length) return;
             section.processFiles(files, statusDiv, refreshDisplay);
-            // 8秒後清除狀態訊息 (但不清除錯誤提示也可以保留一段時間)
-            setTimeout(() => {
-                if (statusDiv.innerHTML.includes('✅') || statusDiv.innerHTML.includes('❌')) {
-                    // 保留最後一條紀錄不清除過快，但保留重要訊息，只清除部分提示？為了UX不清除也可。
-                }
-            }, 10000);
         };
         
         // 點擊上傳區
@@ -491,7 +446,6 @@
         fileInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             handleFiles(files);
-            // 重置 input value 以允許重複上傳相同檔案
             fileInput.value = '';
         });
         
@@ -515,27 +469,7 @@
         section.updateDisplay();
     });
     
-    // 額外：在控制台輸出提醒，方便檢查日期解析邏輯
-    console.log("✅ 頁面已啟動 — 日期解析已強化，支援移除中間空格(ex: '2025/08/ 05' 正確解析)");
-    
-    // 提供一個簡單的測試方法 (開發者可於控制台呼叫 window.testDateParser)
-    window.testDateParser = () => {
-        const testCases = [
-            "2025/08/ 05",
-            " 2025/08/05 ",
-            "2025/08 /05",
-            "2025/ 08/05",
-            "2025年08月05日",
-            "2025-08-05",
-            "08/05/2025"
-        ];
-        console.group("🧪 日期解析測試 (修復後)");
-        testCases.forEach(tc => {
-            const result = parseDate(tc);
-            console.log(`原始: "${tc}" → ${result ? result.toLocaleDateString() : '❌ 解析失敗'} (${result})`);
-        });
-        console.groupEnd();
-    };
+    console.log("✅ 頁面已啟動 — 日期解析已強化，資安防護已啟動");
 </script>
 </body>
 </html>
