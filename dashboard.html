@@ -349,11 +349,10 @@ function aggregateMonthlyByPlatform(posts) {
         const result = [];
         for(let g of groups.values()){
             // ==========================================
-            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)
+            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)(支援多種屬性名稱防呆)
             // ==========================================
             const traffics = g.posts.map(p => {
                 if (g.platform === 'YouTube') {
-                    // ✅ 徹底移除 getRawNumber，使用安全的 raw 挖掘法
                     let v = p.views || p.totalViews || 0; 
                     if (v === 0 && p.raw) {
                         v = parseFloat(String(p.raw['觀看次數'] || p.raw['views'] || 0).replace(/,/g,''));
@@ -361,7 +360,6 @@ function aggregateMonthlyByPlatform(posts) {
                     return isNaN(v) ? 0 : v;
                 } 
                 else if (g.platform === 'IG' || g.platform === 'FB') {
-                    // ✅ 支援 p.reach、p.totalReach，或是直接去 raw 裡面挖
                     let r = p.reach || p.totalReach || 0;
                     if (r === 0 && p.raw) {
                         r = parseFloat(String(p.raw['觸及帳號'] || p.raw['觸及人數'] || 0).replace(/,/g,''));
@@ -380,29 +378,32 @@ function aggregateMonthlyByPlatform(posts) {
                     return p.reach || p.views || 0;
                 }
             }).filter(val => !isNaN(val)).sort((a,b) => a - b);
-
+            
             const medianTraffic = traffics.length ? traffics[Math.floor(traffics.length / 2)] : 0;
-
+            
             // ==========================================
             // 🎯 2. 強化版互動率抓取
             // ==========================================
             const engRates = g.posts.map(p => {
                 if (p.engagementRate && p.engagementRate > 0) return p.engagementRate;
                 
+                // 找出最準確的觸及基數
                 let base = p.reach || p.totalReach || p.views || p.totalViews || 1; 
+                // 找出最準確的互動數
                 let interact = p.interactions || p.totalInteractions || 0;
                 
+                // 如果連 interact 都是 0，去 raw 裡面挖挖看
                 if (interact === 0 && p.raw) {
                      interact = parseFloat(String(p.raw['互動數'] || p.raw['互動'] || 0).replace(/,/g,''));
                 }
                 if (isNaN(interact)) interact = 0;
 
                 return (interact / base) * 100;
-            }).filter(val => !isNaN(val) && val > 0).sort((a,b) => a - b);
+            }).filter(val => !isNaN(val) && val > 0).sort((a,b) => a - b); // 過濾掉 0 以免拉低中位數
             
             const medianEngRate = engRates.length ? engRates[Math.floor(engRates.length / 2)] : 0;
             
-            // ✅ 這裡補回了你剛才漏貼的「打包與回傳」邏輯！
+            // ✅ 這裡補回了遺失的打包回傳邏輯！
             result.push({
                 platform: g.platform, yearMonth: g.yearMonth, year: g.year, month: g.month,
                 postCount: g.posts.length,
