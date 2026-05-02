@@ -163,7 +163,7 @@
         <div class="modal-body">
             <div class="dict-item">
                 <h4>1. 觸及與觀看的分野 (Reach vs. Views)</h4>
-                <p>為符合各平台原生特性，系統自動分流：<strong>IG、FB</strong> 統一採用「觸及數 (Reach)」；<strong>YouTube、Threads</strong> 採用「觀看/瀏覽數 (Views)」。</p>
+                <p>為符合各平台原生特性，系統自動分流：<strong>IG、FB</strong> 統一採用「觸及帳號數 (Reach)」；<strong>YouTube、Threads</strong> 採用「觀看/瀏覽數 (Views)」；<strong>LINE<strong> 採用「投票人數 (Poll)」。</p>
             </div>
             <div class="dict-item">
                 <h4>2. 互動率「中位數」邏輯 (Median Engagement Rate)</h4>
@@ -349,14 +349,19 @@ function aggregateMonthlyByPlatform(posts) {
         const result = [];
         for(let g of groups.values()){
             // ==========================================
-            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)
+            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)(支援多種屬性名稱防呆)
             // ==========================================
             const traffics = g.posts.map(p => {
                 if (g.platform === 'YouTube') {
-                    return p.views || 0; 
+                    return p.views || p.totalViews || getRawNumber(p, ['觀看次數','views'], 0); 
                 } 
                 else if (g.platform === 'IG' || g.platform === 'FB') {
-                    return p.reach || 0;
+                    // ✅ 支援 p.reach、p.totalReach，或是直接去 raw 裡面挖
+                    let r = p.reach || p.totalReach || 0;
+                    if (r === 0 && p.raw) {
+                        r = parseFloat(String(p.raw['觸及帳號'] || p.raw['觸及人數'] || 0).replace(/,/g,''));
+                    }
+                    return isNaN(r) ? 0 : r;
                 }
                 else if (g.platform === 'LINE') {
                     let voters = p.voters || (p.raw && p.raw['投票人數']) || 0;
@@ -372,33 +377,25 @@ function aggregateMonthlyByPlatform(posts) {
             }).filter(val => !isNaN(val)).sort((a,b) => a - b);
 
             const medianTraffic = traffics.length ? traffics[Math.floor(traffics.length / 2)] : 0;
-
             // ==========================================
-            // 🎯 2. 計算互動率中位數
+            // 🎯 2. 強化版互動率抓取
             // ==========================================
             const engRates = g.posts.map(p => {
                 if (p.engagementRate && p.engagementRate > 0) return p.engagementRate;
-                let base = p.reach || p.views || 1; 
-                return (p.interactions / base) * 100;
-            }).filter(val => !isNaN(val)).sort((a,b) => a - b);
-            
-            const medianEngRate = engRates.length ? engRates[Math.floor(engRates.length / 2)] : 0;
-            
-            result.push({
-                platform: g.platform, yearMonth: g.yearMonth, year: g.year, month: g.month,
-                postCount: g.posts.length,
-                medianTraffic: medianTraffic,        
-                medianEngagementRate: medianEngRate, 
-                totalReach: g.totalReach,            // 保留給上方卡片總量計算用
-                totalViews: g.totalViews,
-                totalLikes: g.totalLikes,
-                totalShares: g.totalShares,
-                totalInteractions: g.totalInteractions,
-                posts: g.posts
-            });
-        }
-        return result;
-    }
+                
+                // 找出最準確的觸及基數
+                let base = p.reach || p.totalReach || p.views || p.totalViews || 1; 
+                // 找出最準確的互動數
+                let interact = p.interactions || p.totalInteractions || 0;
+                
+                // 如果連 interact 都是 0，去 raw 裡面挖挖看
+                if (interact === 0 && p.raw) {
+                     interact = parseFloat(String(p.raw['互動數'] || p.raw['互動'] || 0).replace(/,/g,''));
+                }
+                if (isNaN(interact)) interact = 0;
+
+                return (interact / base) * 100;
+            }).filter(val => !isNaN(val) && val > 0).sort((a,b) => a - b); // 過濾掉 0 以免拉低中位數
     function movingAverage(data, period=3){
         let result = [];
         for(let i=0; i<data.length; i++){
