@@ -942,6 +942,9 @@ function updateDeadlineAndRedraw() {
         renderEngagementChart();
         updateSimulatorBase();
         updateSimulation();
+        renderReachChart();        
+        // 讓網頁一載入就執行一次日期倒數計算！
+        updateDeadlineAndRedraw();
         
         const datePicker = document.getElementById('customTargetDate');
         if(datePicker){ 
