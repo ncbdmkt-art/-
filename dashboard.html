@@ -348,7 +348,7 @@ function aggregateMonthlyByPlatform(posts) {
         
         const result = [];
         for(let g of groups.values()){
-            // ==========================================
+           // ==========================================
             // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)(支援多種屬性名稱防呆)
             // ==========================================
             const traffics = g.posts.map(p => {
@@ -362,7 +362,8 @@ function aggregateMonthlyByPlatform(posts) {
                 else if (g.platform === 'IG' || g.platform === 'FB') {
                     let r = p.reach || p.totalReach || 0;
                     if (r === 0 && p.raw) {
-                        r = parseFloat(String(p.raw['觸及帳號'] || p.raw['觸及人數'] || 0).replace(/,/g,''));
+                        // 增強防呆：把所有行銷可能用的字眼都包進去
+                        r = parseFloat(String(p.raw['觸及帳號'] || p.raw['觸及人數'] || p.raw['觸及'] || 0).replace(/,/g,''));
                     }
                     return isNaN(r) ? 0 : r;
                 }
@@ -377,7 +378,7 @@ function aggregateMonthlyByPlatform(posts) {
                 else {
                     return p.reach || p.views || 0;
                 }
-            }).filter(val => !isNaN(val)).sort((a,b) => a - b);
+            }).filter(val => !isNaN(val) && val > 0).sort((a,b) => a - b); // 🛑 關鍵修復：加入 `val > 0`，將沒有數據的空貼文踢出中位數計算！
             
             const medianTraffic = traffics.length ? traffics[Math.floor(traffics.length / 2)] : 0;
             
