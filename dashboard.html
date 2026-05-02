@@ -138,6 +138,7 @@
         canvas { max-height: 220px; width: 100%; margin-top: 10px; }
         .lamp-green:before { content:"🟢"; font-size:0.8rem; margin-right:4px; }
         .lamp-red:before { content:"🔴"; font-size:0.8rem; margin-right:4px; }
+        .lamp-yellow:before { content:"🟡"; font-size:0.8rem; margin-right:4px; }
         
         @media (max-width: 1000px){ 
             .dashboard-layout { flex-direction: column; } 
@@ -208,7 +209,25 @@
     <div class="dashboard-layout">
         <div class="left-column">
             <div class="card recap-card"><div class="card-title">📆 每月渠道現狀 Recap </div><div id="recapText">載入中...</div></div>
-            <div class="card"><div class="card-title">⏱️ 發布節奏穩定度</div><div id="rhythmLamps" class="rhythm-grid"></div></div>
+            <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                        ⏱️ 發布節奏穩定度
+                        <div id="rhythmBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
+                </div>
+                <!-- 👇 點擊後才會出現的狀態標準說明框 -->
+                <div id="rhythmInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:16px; width:100%;">
+                    <strong>💡 燈號判定標準 (最大空窗期)：</strong><br>
+                    <div style="margin-top:6px; padding-left:4px; border-left:3px solid #c5e0b4; line-height:1.6;">
+                        <span style="display:inline-block;">📷 <strong>IG / FB：</strong> 🟢穩定 &le; 3天 ｜ 🟡稍緩 4~9天 ｜ 🔴空窗 &ge; 10天</span><br>
+                        <span style="display:inline-block;">🧵 <strong>Threads：</strong> 🟢穩定 &le; 2天 ｜ 🟡稍緩 3~5天 ｜ 🔴空窗 &ge; 6天</span><br>
+                        <span style="display:inline-block;">💬 <strong>LINE：</strong> 🟢穩定 &le; 7天 ｜ 🟡稍緩 8~14天 ｜ 🔴空窗 &ge; 15天</span><br>
+                        <span style="display:inline-block;">📺 <strong>YouTube：</strong> 🟢穩定 &le; 14天 ｜ 🟡稍緩 15~28天 ｜ 🔴空窗 &ge; 29天</span>
+                    </div>
+                </div>
+                <div id="rhythmLamps" class="rhythm-grid"></div>
+            </div>
         <div class="card">
                 <div class="card-title">🎯 戰略目標總覽</div>
                 <div class="deadline-bar">
@@ -329,6 +348,20 @@
                 } else {
                     cmInfo.style.display = 'none';
                     cmBtn.classList.remove('pressed'); 
+                }
+            });
+        }
+        // 節奏穩定度 ⓘ 浮凸按鈕
+        const rhBtn = document.getElementById('rhythmBtn');
+        const rhInfo = document.getElementById('rhythmInfo');
+        if(rhBtn && rhInfo) {
+            rhBtn.addEventListener('click', () => {
+                if (rhInfo.style.display === 'none') {
+                    rhInfo.style.display = 'block';
+                    rhBtn.classList.add('pressed'); 
+                } else {
+                    rhInfo.style.display = 'none';
+                    rhBtn.classList.remove('pressed'); 
                 }
             });
         }
@@ -784,18 +817,57 @@ function renderLeverage() {
     }
     
     function renderRhythmCards(){
-        const platforms=['IG','FB','LINE','YouTube','Threads'];
-        let html='';
+        const platforms = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
+        let html = '';
+        
         for(let plat of platforms){
-            const platPosts=allPostsGlobal.filter(p=>p.platform===plat).sort((a,b)=>new Date(a.date)-new Date(b.date));
-            let maxGap=0;
-            if(platPosts.length>1){
-                let prev=platPosts[0].date;
-                for(let i=1;i<platPosts.length;i++){ let diff=(platPosts[i].date-prev)/(1000*3600*24); if(diff>maxGap) maxGap=diff; prev=platPosts[i].date; }
+            // 1. 計算該平台最大空窗期
+            const platPosts = allPostsGlobal.filter(p => p.platform === plat).sort((a,b) => new Date(a.date) - new Date(b.date));
+            let maxGap = 0;
+            if(platPosts.length > 1){
+                let prev = platPosts[0].date;
+                for(let i=1; i<platPosts.length; i++){ 
+                    let diff = (platPosts[i].date - prev) / (1000*3600*24); 
+                    if(diff > maxGap) maxGap = diff; 
+                    prev = platPosts[i].date; 
+                }
             }
-            const isRed=(maxGap>=3)||(platPosts.length===0);
-            const status=platPosts.length===0?'無發文':(isRed?`空窗 ${Math.round(maxGap)}天`:'穩定');
-            html+=`<div class="rhythm-card"><i class="fab fa-${plat==='YouTube'?'youtube':plat.toLowerCase()}"></i><div class="platform-name">${plat}</div><div class="rhythm-status"><span class="${isRed?'lamp-red':'lamp-green'}"></span> ${status}</div></div>`;
+
+            // 2. 依照平台設定專屬門檻 (limitYellow: 黃燈起點, limitRed: 紅燈起點)
+            let limitYellow = 6, limitRed = 10; // 預設給 IG / FB
+            
+            if (plat === 'Threads') {
+                limitYellow = 3; limitRed = 6;
+            } else if (plat === 'LINE') {
+                limitYellow = 8; limitRed = 15;
+            } else if (plat === 'YouTube') {
+                limitYellow = 15; limitRed = 29;
+            }
+
+            // 3. 判定燈號與文字
+            let statusText = '';
+            let lampClass = '';
+            
+            if (platPosts.length === 0) {
+                statusText = '無發文'; 
+                lampClass = 'lamp-red';
+            } else if (maxGap >= limitRed) {
+                statusText = `空窗 ${Math.round(maxGap)}天`; 
+                lampClass = 'lamp-red';
+            } else if (maxGap >= limitYellow) {
+                statusText = `稍緩 (${Math.round(maxGap)}天)`; 
+                lampClass = 'lamp-yellow';
+            } else {
+                statusText = '穩定'; 
+                lampClass = 'lamp-green';
+            }
+
+            // 4. 輸出卡片 HTML
+            html += `<div class="rhythm-card">
+                        <i class="fab fa-${plat==='YouTube'?'youtube':plat.toLowerCase()}"></i>
+                        <div class="platform-name">${plat}</div>
+                        <div class="rhythm-status"><span class="${lampClass}"></span> ${statusText}</div>
+                     </div>`;
         }
         document.getElementById('rhythmLamps').innerHTML = html;
     }
