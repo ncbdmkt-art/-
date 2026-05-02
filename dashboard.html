@@ -121,6 +121,36 @@
             .right-column { min-width: auto; } 
             .dual-metric { grid-template-columns: 1fr; }
         }
+    /* =========================================================
+           ✨ 指標定義說明字典 (Modal) 樣式
+           ========================================================= */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); z-index: 1000;
+            justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-content {
+            background: var(--bg-card); width: 90%; max-width: 750px; max-height: 85vh;
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+            display: flex; flex-direction: column; overflow: hidden; 
+            transform: translateY(-20px); transition: transform 0.3s ease;
+        }
+        .modal-overlay.show .modal-content { transform: translateY(0); }
+        .modal-header {
+            padding: 20px 24px; border-bottom: 1px solid var(--border-muted);
+            display: flex; justify-content: space-between; align-items: center; background: var(--bg-card-alt);
+        }
+        .modal-header h2 { font-size: 1.25rem; color: var(--primary-text); margin: 0; display:flex; align-items:center; gap:8px;}
+        .close-btn {
+            background: none; border: none; font-size: 1.8rem; cursor: pointer; color: #888; transition: 0.2s; padding: 0 8px;
+        }
+        .close-btn:hover { color: var(--status-down); }
+        .modal-body { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+        .dict-item { background: #fafdf5; padding: 16px 20px; border-radius: 16px; border-left: 4px solid var(--primary-light); }
+        .dict-item h4 { margin-bottom: 8px; color: var(--primary-dark); font-size: 1.05rem; }
+        .dict-item p { font-size: 0.95rem; line-height: 1.6; color: #4a5d4e; margin: 0; }
+        .dict-item code { background: #eef3ea; padding: 2px 6px; border-radius: 6px; font-family: monospace; color: var(--status-up); font-weight: 600;}
     </style>
 </head>
 <body>
