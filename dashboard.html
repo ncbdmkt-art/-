@@ -318,53 +318,32 @@
         }
         return 0;
     }
-function aggregateMonthlyByPlatform(posts) {
-        const groups = new Map();
-        for(let p of posts){
-            if(!p.date) continue;
-            const y = p.date.getFullYear();
-            const m = String(p.date.getMonth() + 1).padStart(2, '0');
-            const key = `${p.platform}_${y}-${m}`;
-            
-            if(!groups.has(key)) {
-                groups.set(key, { 
-                    platform: p.platform, yearMonth: `${y}-${m}`, year: y, month: parseInt(m), 
-                    posts: [], totalReach: 0, totalViews: 0, totalLikes: 0, totalShares: 0, totalInteractions: 0 
-                });
-            }
-            const g = groups.get(key);
-            g.posts.push(p);
-            
-            // ✅ 直接讀取標準化屬性，無比輕鬆！
-            g.totalReach += (p.reach || 0);
-            g.totalViews += (p.views || 0);
-            g.totalLikes += (p.likes || 0);
-            g.totalShares += (p.shares || 0);
-            g.totalInteractions += (p.interactions || 0);
-        }
-        
-        const result = [];
-        for(let g of groups.values()){
-            // ✅ 互動率智慧判斷：優先使用已算好的 p.engagementRate (對 YT 極為重要)
-            const engRates = g.posts.map(p => {
-                if (p.engagementRate > 0) return p.engagementRate;
-                // 若沒有預先算好，則用：互動數 / (觸及或觀看) 
-                let base = p.reach || p.views || 1; 
-                return (p.interactions / base) * 100;
-            }).sort((a,b) => a - b);
-            
-            result.push({
-                platform: g.platform, yearMonth: g.yearMonth, year: g.year, month: g.month,
-                totalReach: g.totalReach, 
-                totalViews: g.totalViews, // ✅ 新增總觀看數
-                postCount: g.posts.length,
-                medianEngagementRate: engRates.length ? engRates[Math.floor(engRates.length/2)] : 0,
-                totalLikes: g.totalLikes, totalShares: g.totalShares, totalInteractions: g.totalInteractions,
-                posts: g.posts
-            });
-        }
-        return result;
-    }
+            // ==========================================
+            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標
+            // ==========================================
+            const traffics = g.posts.map(p => {
+                if (g.platform === 'YouTube') {
+                    // ✅ YouTube: 嚴格只抓「觀看次數 (views)」
+                    return p.views || 0; 
+                } 
+                else if (g.platform === 'IG' || g.platform === 'FB') {
+                    // ✅ IG & FB: 嚴格只抓「觸及帳號數 (reach)」
+                    return p.reach || 0;
+                }
+                else if (g.platform === 'LINE') {
+                    // LINE: 顯示「投票人數」
+                    let voters = p.voters || (p.raw && p.raw['投票人數']) || 0;
+                    return typeof voters === 'string' ? parseFloat(voters.replace(/,/g, '')) : voters;
+                } 
+                else if (g.platform === 'Threads') {
+                    // Threads: 顯示「粉絲觀看數」
+                    let fanViews = p.fanViews || (p.raw && p.raw['粉絲觀看數']) || 0;
+                    return typeof fanViews === 'string' ? parseFloat(fanViews.replace(/,/g, '')) : fanViews;
+                } 
+                else {
+                    return p.reach || p.views || 0;
+                }
+            }).filter(val => !isNaN(val)).sort((a,b) => a - b); // 排序以計算中位數
     function getMonthlyComparison(platform, monthlyAgg){
         const data = monthlyAgg.filter(m=>m.platform===platform).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
         if(data.length<2) return null;
@@ -606,47 +585,30 @@ function findChampions(allPosts) {
         document.getElementById('leverageContainer').innerHTML = html;
     }
     
-    function renderChannelRecap(){
-        const platforms = ['IG','FB','LINE','YouTube','Threads'];
-        let channelData = [];
-        
-        // ✅ 全域時鐘校準 (找出絕對最新月份)
-        let latestYearMonth = '';
-        if(monthlyAggGlobal.length > 0) {
-            const allSorted = [...monthlyAggGlobal].sort((a,b)=>b.yearMonth.localeCompare(a.yearMonth));
-            latestYearMonth = allSorted[0].yearMonth;
-        }
-
-        for(let p of platforms){
-            // ✅ 只抓最新那個月的數據
-            const currentMonthData = monthlyAggGlobal.find(m => m.platform === p && m.yearMonth === latestYearMonth);
-            
-            if(currentMonthData) {
-                // ✅ 雙軌支援：IG/FB 吃 Reach，YT/Threads 吃 Views
-                let displayTraffic = currentMonthData.totalReach || currentMonthData.totalViews || 0;
-                channelData.push({ platform:p, totalReach:displayTraffic, postCount:currentMonthData.postCount, engagementRate:currentMonthData.medianEngagementRate });
-            } else { 
-                channelData.push({ platform:p, totalReach:0, postCount:0, engagementRate:0 });
-            }
-        }
-        
-        const minEng = Math.min(...channelData.map(c=>c.engagementRate));
-        let html = '<div class="channel-recap-grid">';
+let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
-            const isLowest = (c.engagementRate === minEng && minEng > 0) || (c.engagementRate === 0 && minEng === 0 && c.postCount === 0);
+            const isLowest = (c.engagementRate === minEng && c.postCount > 0);
+            
+            // 💡 根據平台，精準動態改變 UI 標籤名稱！
+            let trafficLabel = '📊流量中位數';
+            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及帳號中位數';
+            if (c.platform === 'YouTube') trafficLabel = '📺觀看次數中位數';
+            if (c.platform === 'LINE') trafficLabel = '🗳️投票人數中位數';
+            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看中位數';
+            
             html += `<div class="channel-recap-item ${isLowest ? 'lowest-interact' : ''}">
-                        <div class="chan-name"><i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}</div>
+                        <div class="chan-name">
+                            <i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}
+                            <span style="font-size:0.7rem; color:#888; margin-left:8px;">(${c.latestMonthStr})</span>
+                        </div>
                         <div class="chan-stats">
-                            <span>📊流量 ${c.totalReach.toLocaleString()}</span>
+                            <span>${trafficLabel} ${Math.round(c.medianTraffic).toLocaleString()}</span>
                             <span>📄發文 ${c.postCount}篇</span>
                             <span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>
                         </div>
-                        ${c.postCount === 0 && c.totalReach === 0 ? '<span class="warning">⚠️ 暫無數據</span>' : (isLowest && c.postCount>0 ? '<span class="warning">⚠️ 最低互動率</span>' : '')}
+                        ${c.postCount === 0 ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 暫無數據</span>' : (isLowest ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 最低互動率</span>' : '')}
                     </div>`;
         }
-        html += `<div class="info-note">🔔 最低互動率平台已高亮，LINE若無數據請上傳貼文。</div>`;
-        document.getElementById('recapText').innerHTML = html;
-    }
     
     function renderRhythmCards(){
         const platforms=['IG','FB','LINE','YouTube','Threads'];
