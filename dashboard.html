@@ -773,7 +773,7 @@ function renderLeverage() {
         document.getElementById('leverageContainer').innerHTML = html;
     }
 
-    function renderChannelRecap(){
+function renderChannelRecap(){
         const platforms = ['IG','FB','LINE','YouTube','Threads'];
         let channelData = [];
         
@@ -790,29 +790,37 @@ function renderLeverage() {
             }
         }
         
-        const activeChannels = channelData.filter(c => c.postCount > 0);
+        // ✅ 修正點 1：排除 IG, FB, LINE 參與「最低互動率」的比較 (因為畫面上不顯示了)
+        const activeChannels = channelData.filter(c => c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
         const minEng = activeChannels.length > 0 ? Math.min(...activeChannels.map(c => c.engagementRate)) : -1;
         
         let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
-            const isLowest = (c.engagementRate === minEng && c.postCount > 0);
-            let trafficLabel = '📊流量MID';
-            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及MID';
-            if (c.platform === 'YouTube') trafficLabel = '📺觀看MID';
-            if (c.platform === 'LINE') trafficLabel = '🗳️投票MID';
-            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看MID';
+            // 只有被納入計算的頻道且互動率最低，才會亮起「最低互動率」的紅框
+            const isLowest = (c.engagementRate === minEng && c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
+            let trafficLabel = '📊流量中位數';
+            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及帳號中位數';
+            if (c.platform === 'YouTube') trafficLabel = '📺觀看次數中位數';
+            if (c.platform === 'LINE') trafficLabel = '🗳️投票人數中位數';
+            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看中位數';
+            
+            // ✅ 修正點 2：針對 IG、FB、LINE 隱藏互動率文字
+            let engHtml = '';
+            if (!['IG', 'FB', 'LINE'].includes(c.platform)) {
+                engHtml = `<span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>`;
+            }
             
             html += `<div class="channel-recap-item ${isLowest ? 'lowest-interact' : ''}">
                         <div class="chan-name"><i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}<span style="font-size:0.7rem; color:#888; margin-left:8px;">(${c.latestMonthStr})</span></div>
                         <div class="chan-stats">
                             <span>${trafficLabel} ${Math.round(c.medianTraffic).toLocaleString()}</span>
                             <span>📄發文 ${c.postCount}篇</span>
-                            <span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>
+                            ${engHtml}
                         </div>
                         ${c.postCount === 0 ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 暫無數據</span>' : (isLowest ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 最低互動率</span>' : '')}
                     </div>`;
         }
-        html += `<div class="info-note">🔔 MID是指該月中位數；最低互動率平台已高亮，數據顯示各平台「最新有發文月份」之表現。</div>`;
+        html += `<div class="info-note">🔔 最低互動率平台已高亮，數據顯示各平台「最新有發文月份」之表現。</div>`;
         document.getElementById('recapText').innerHTML = html;
     }
     
