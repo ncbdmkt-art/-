@@ -177,6 +177,38 @@
         
         return null;
     }
+    // ======================== 🗄️ 資料連接總管 (Data Manager) ========================
+    // 將所有跟 localStorage 溝通的邏輯集中在這裡，未來若要換成 API 或雲端資料庫，只要改這裡就好！
+    const DataManager = {
+        // --- 社群資料管理 ---
+        saveSocialPosts: function(channel, newPosts) {
+            const key = `posts_${channel}`;
+            let existing = this.getSocialPosts(channel);
+            existing = existing.concat(newPosts);
+            localStorage.setItem(key, JSON.stringify(existing));
+        },
+        getSocialPosts: function(channel) {
+            const raw = localStorage.getItem(`posts_${channel}`);
+            return raw ? JSON.parse(raw) : [];
+        },
+        clearAllSocialPosts: function() {
+            ['IG', 'FB', 'LINE', 'YouTube', 'Threads'].forEach(ch => localStorage.removeItem(`posts_${ch}`));
+        },
+
+        // --- 回饋表單資料管理 ---
+        saveFeedback: function(newRows) {
+            let existing = this.getFeedback();
+            existing = existing.concat(newRows);
+            localStorage.setItem('feedbackData', JSON.stringify(existing));
+        },
+        getFeedback: function() {
+            const raw = localStorage.getItem('feedbackData');
+            return raw ? JSON.parse(raw) : [];
+        },
+        clearFeedback: function() {
+            localStorage.removeItem('feedbackData');
+        }
+    };
 
     // ------------------------ 欄位映射與正規化 (增加除錯能力) ------------------------
     function normalizeRowKeys(row) {
