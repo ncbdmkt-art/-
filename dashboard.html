@@ -272,12 +272,48 @@
                         <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
                     </div>
                 </div>
-                <!-- 點擊後才會出現的隱藏說明框 -->
-                <div id="idealSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%;">
-                    <strong>📐 虛線 (理想斜率)：</strong>若要達成粉絲目標，每月需達到的觸及數基準。<br>
-                    <span style="color:#666; font-size:0.75rem;">(公式：粉絲缺口 ÷ 系統常數 0.8% ÷ 距離年底剩餘月數)</span><br>
-                    <strong>➖ 實線 (粗)：</strong>3期移動平均線 | <strong>⋮ 垂直虛線：</strong>內容策略調整點
+<!-- 📈 觸及趨勢圖區塊 -->
+            <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center;">
+                        📈 近月觸及趨勢 + 理想斜率 
+                        <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
                 </div>
+                <!-- 👇 升級版的隱藏判讀指引框 -->
+                <div id="idealSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%; border-left:4px solid var(--primary);">
+                    <strong>💡 一秒判讀法：我們年底能達標嗎？</strong><br>
+                    <div style="margin-top:6px; line-height:1.6;">
+                        ✔️ <strong>實線 > 虛線：</strong> <span style="color:#2e7d32; font-weight:600;">進度超前！</span>維持現有發文頻率即可達標。<br>
+                        ❌ <strong>實線 < 虛線：</strong> <span style="color:#c62828; font-weight:600;">嚴重落後！</span>純靠自然流量已死，必須立刻「投廣告買流量」或「跨界合作」。
+                    </div>
+                    <hr style="border:0; border-top:1px dashed #c5e0b4; margin:8px 0;">
+                    <span style="color:#666; font-size:0.75rem;">📝 元素說明：<strong>➖ 粗實線</strong> = 3個月移動平均線(看真實趨勢) ｜ <strong>-- 虛線</strong> = 系統推算的達標及格線</span>
+                </div>
+                <canvas id="reachTrendChart" height="160"></canvas>
+            </div>
+            
+            <!-- 💬 互動率趨勢圖區塊 -->
+            <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center;">
+                        💬 近月互動率趨勢 (目標閾值 3.5%)
+                        <!-- 新增互動率專屬的 i 按鈕 -->
+                        <div id="engSlopeBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
+                </div>
+                <!-- 👇 互動率專屬的隱藏判讀指引框 -->
+                <div id="engSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%; border-left:4px solid var(--primary);">
+                    <strong>💡 一秒判讀法：我們的內容粉絲愛看嗎？</strong><br>
+                    <div style="margin-top:6px; line-height:1.6;">
+                        ✔️ <strong>高於 3.5% (白底)：</strong> <span style="color:#2e7d32; font-weight:600;">內容極佳！</span>此時「下廣告放大觸及」CP值最高。<br>
+                        ❌ <strong>低於 3.5% (淡紅底)：</strong> <span style="color:#c62828; font-weight:600;">內容疲乏！</span>嚴禁盲目投廣告，應立刻更換素材風格或重新抓取受眾。
+                    </div>
+                    <hr style="border:0; border-top:1px dashed #c5e0b4; margin:8px 0;">
+                    <span style="color:#666; font-size:0.75rem;">📝 元素說明：採用「中位數」計算，排除單篇爆紅或極差的雜訊，反映最真實的日常體質。</span>
+                </div>
+                <canvas id="engagementTrendChart" height="150"></canvas>
+            </div>
                 <canvas id="reachTrendChart" height="160"></canvas>
             </div>
             
@@ -362,6 +398,20 @@
                 } else {
                     rhInfo.style.display = 'none';
                     rhBtn.classList.remove('pressed'); 
+                }
+            });
+        }
+        // 互動率趨勢圖 ⓘ 浮凸按鈕 (新增)
+        const engBtn = document.getElementById('engSlopeBtn');
+        const engInfo = document.getElementById('engSlopeInfo');
+        if(engBtn && engInfo) {
+            engBtn.addEventListener('click', () => {
+                if (engInfo.style.display === 'none') {
+                    engInfo.style.display = 'block';
+                    engBtn.classList.add('pressed'); 
+                } else {
+                    engInfo.style.display = 'none';
+                    engBtn.classList.remove('pressed'); 
                 }
             });
         }
