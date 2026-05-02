@@ -228,7 +228,7 @@
 
     <div class="dashboard-layout">
         <div class="left-column">
-            <div class="card recap-card"><div class="card-title">📆 每月頻道 Recap (各渠道現狀)</div><div id="recapText">載入中...</div></div>
+            <div class="card recap-card"><div class="card-title">📆 每月渠道現狀 Recap </div><div id="recapText">載入中...</div></div>
             <div class="card"><div class="card-title">⏱️ 發布節奏穩定度</div><div id="rhythmLamps" class="rhythm-grid"></div></div>
             <div class="card">
                 <div class="card-title">🎯 戰略目標總覽</div>
@@ -244,7 +244,25 @@
 
         <div class="right-column">
             <div id="dynamicAlertArea" class="alert-card card" style="display:none;"><div class="card-title">⚠️ 主動異常警示</div><div id="alertMessage"></div></div>
-            <div class="card"><div class="card-title">📊 核心數據儀表板 (月增幅) <span style="font-size:0.7rem; background:#eef3ea; padding:4px 10px; border-radius:30px;"><i class="fas fa-chart-line"></i> 箭頭代表優於/劣於上月</span></div><div id="coreMetrics"></div></div>
+           <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                        📊 核心數據儀表板 (月增幅)
+                        <span style="font-size:0.7rem; background:#eef3ea; padding:4px 10px; border-radius:30px;"><i class="fas fa-chart-line"></i> 箭頭代表優於/劣於上月</span>
+                        <div id="coreMetricsBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
+                </div>
+                <!-- 👇 點擊後才會出現的狀態標準說明框 -->
+                <div id="coreMetricsInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%;">
+                    <strong>💡 狀態燈號判定標準：</strong><br>
+                    <div style="margin-top:6px; padding-left:4px; border-left:3px solid #c5e0b4;">
+                        <span style="display:inline-block; margin-bottom:4px;">👥 <strong>粉絲增幅：</strong> <span style="color:#e65100; font-weight:600;">🔥爆發 &ge; 1.5%</span> ｜ ➖穩定 -0.5% ~ 1.5% ｜ <span style="color:#c62828; font-weight:600;">📉警示 &le; -0.5%</span></span><br>
+                        <span style="display:inline-block; margin-bottom:4px;">👍 <strong>按讚 / 互動率：</strong> <span style="color:#e65100; font-weight:600;">🔥爆發 &ge; 10%</span> ｜ ➖穩定 -10% ~ 10% ｜ <span style="color:#c62828; font-weight:600;">📉警示 &le; -10%</span></span><br>
+                        <span style="display:inline-block;">📈 <strong>總觸及增幅：</strong> <span style="color:#e65100; font-weight:600;">🔥爆發 &ge; 20%</span> ｜ ➖穩定 -15% ~ 20% ｜ <span style="color:#c62828; font-weight:600;">📉警示 &le; -15%</span></span>
+                    </div>
+                </div>
+                <div id="coreMetrics"></div>
+            </div>
             <div class="card"><div class="card-title">📐 內容槓桿率 (單篇平均產出 vs 上月)</div><div id="leverageContainer">計算中...</div></div>
             <div class="card">
                 <div class="card-title">
@@ -311,6 +329,23 @@
                     // 收合，按鈕恢復浮凸
                     slopeInfo.style.display = 'none';
                     slopeBtn.classList.remove('pressed'); 
+                }
+            });
+        }
+        // 👇 新增：核心數據儀表板 ⓘ 浮凸按鈕的點擊展開邏輯
+        const cmBtn = document.getElementById('coreMetricsBtn');
+        const cmInfo = document.getElementById('coreMetricsInfo');
+        
+        if(cmBtn && cmInfo) {
+            cmBtn.addEventListener('click', () => {
+                if (cmInfo.style.display === 'none') {
+                    // 展開，按鈕凹陷
+                    cmInfo.style.display = 'block';
+                    cmBtn.classList.add('pressed'); 
+                } else {
+                    // 收合，按鈕浮起
+                    cmInfo.style.display = 'none';
+                    cmBtn.classList.remove('pressed'); 
                 }
             });
         }
