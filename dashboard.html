@@ -214,7 +214,6 @@
                 <div class="deadline-bar">
                     <label><i class="far fa-calendar-alt"></i> 目標期限：</label>
                     <input type="date" id="customTargetDate" value="2026-12-31" style="padding:6px 12px; border-radius:32px; border:1px solid #c5e0b4;">
-                    <span class="deadline-remain">⏳ <span id="targetDaysRemaining">0</span> 天後到期</span>
                     <span class="deadline-remain" id="targetDaysRemaining">⏳ 計算中...</span>
                 </div>
                 <div id="goalsContainer"></div>
@@ -941,8 +940,7 @@ function updateDeadlineAndRedraw() {
         renderReachChart();
         renderEngagementChart();
         updateSimulatorBase();
-        updateSimulation();
-        renderReachChart();        
+        updateSimulation();        
         // 讓網頁一載入就執行一次日期倒數計算！
         updateDeadlineAndRedraw();
         
