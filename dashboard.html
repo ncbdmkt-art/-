@@ -524,7 +524,7 @@ function aggregateMonthlyByPlatform(posts) {
     }
 
     // ========== 3. 優化亮點偵測 ==========
-    function findChampions(allPosts) {
+function findChampions(allPosts) {
         if(!allPosts.length) return { monthItems: [], quarterItems: [], monthLabel: '', quarterLabel: '' };
         const targetPlats = ['IG', 'FB'];
         const sorted = [...allPosts].sort((a,b)=>b.date - a.date);
@@ -539,7 +539,8 @@ function aggregateMonthlyByPlatform(posts) {
         const getBest = (posts, plat) => {
             let best = null, maxReach = -1;
             posts.filter(p => p.platform === plat).forEach(p => {
-                let r = getRawNumber(p, ['觸及帳號','reach','views'],0);
+                // ✅ 完美接軌：捨棄 getRawNumber，直接讀取標準化屬性！
+                let r = p.reach || p.views || 0; 
                 if(r > maxReach) { maxReach = r; best = p; }
             });
             return best ? { post: best, reach: maxReach } : null;
@@ -608,11 +609,27 @@ function aggregateMonthlyByPlatform(posts) {
     function renderChannelRecap(){
         const platforms = ['IG','FB','LINE','YouTube','Threads'];
         let channelData = [];
-        for(let p of platforms){
-            const d = monthlyAggGlobal.filter(m=>m.platform===p).sort((a,b)=>b.yearMonth.localeCompare(a.yearMonth));
-            if(d.length) channelData.push({ platform:p, totalReach:d[0].totalReach, postCount:d[0].postCount, engagementRate:d[0].medianEngagementRate });
-            else channelData.push({ platform:p, totalReach:0, postCount:0, engagementRate:0 });
+        
+        // ✅ 全域時鐘校準 (找出絕對最新月份)
+        let latestYearMonth = '';
+        if(monthlyAggGlobal.length > 0) {
+            const allSorted = [...monthlyAggGlobal].sort((a,b)=>b.yearMonth.localeCompare(a.yearMonth));
+            latestYearMonth = allSorted[0].yearMonth;
         }
+
+        for(let p of platforms){
+            // ✅ 只抓最新那個月的數據
+            const currentMonthData = monthlyAggGlobal.find(m => m.platform === p && m.yearMonth === latestYearMonth);
+            
+            if(currentMonthData) {
+                // ✅ 雙軌支援：IG/FB 吃 Reach，YT/Threads 吃 Views
+                let displayTraffic = currentMonthData.totalReach || currentMonthData.totalViews || 0;
+                channelData.push({ platform:p, totalReach:displayTraffic, postCount:currentMonthData.postCount, engagementRate:currentMonthData.medianEngagementRate });
+            } else { 
+                channelData.push({ platform:p, totalReach:0, postCount:0, engagementRate:0 });
+            }
+        }
+        
         const minEng = Math.min(...channelData.map(c=>c.engagementRate));
         let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
@@ -620,7 +637,7 @@ function aggregateMonthlyByPlatform(posts) {
             html += `<div class="channel-recap-item ${isLowest ? 'lowest-interact' : ''}">
                         <div class="chan-name"><i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}</div>
                         <div class="chan-stats">
-                            <span>📊觸及 ${c.totalReach.toLocaleString()}</span>
+                            <span>📊流量 ${c.totalReach.toLocaleString()}</span>
                             <span>📄發文 ${c.postCount}篇</span>
                             <span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>
                         </div>
@@ -702,13 +719,18 @@ function aggregateMonthlyByPlatform(posts) {
         if(posts.length < 2) { document.getElementById('predictionResult').innerHTML = '數據不足'; return; }
         const monthly = aggregateMonthlyByPlatform(posts).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
         if(monthly.length < 2) return;
-        const x = monthly.map((_,i)=>i+1), reachY = monthly.map(m=>m.totalReach);
+        
+        // ✅ 讓 Y 軸的陣列同時支援 Reach 和 Views
+        const x = monthly.map((_,i)=>i+1);
+        const reachY = monthly.map(m => m.totalReach || m.totalViews || 0); 
+        
         let sumX=0,sumY=0,sumXY=0,sumX2=0;
         for(let i=0;i<x.length;i++){ sumX+=x[i]; sumY+=reachY[i]; sumXY+=x[i]*reachY[i]; sumX2+=x[i]*x[i]; }
         const slope = (x.length*sumXY-sumX*sumY)/(x.length*sumX2-sumX*sumX);
         const intercept = (sumY-slope*sumX)/x.length;
         let predReach = slope*(x.length+1)+intercept;
         if(predReach < 0) predReach = reachY[reachY.length-1] * 0.8;
+        
         const postDelta = parseInt(document.getElementById('postDeltaCount').value);
         const likeDelta = parseInt(document.getElementById('likePerPostDelta').value);
         const shareDelta = parseInt(document.getElementById('sharePerPostDelta').value);
@@ -716,10 +738,11 @@ function aggregateMonthlyByPlatform(posts) {
         let likeFactor = (currentChannelMeta.medianLike>0)? 1+(likeDelta/currentChannelMeta.medianLike)*0.3 : 1+(likeDelta/100); likeFactor = Math.max(0.5, Math.min(1.5, likeFactor));
         let shareFactor = 1;
         if(channel !== 'LINE') shareFactor = (currentChannelMeta.medianShare>0)? 1+(shareDelta/currentChannelMeta.medianShare)*0.5 : 1+(shareDelta/50); shareFactor = Math.max(0.5, Math.min(2.0, shareFactor));
+        
         let finalPredReach = predReach * postFactor * likeFactor * shareFactor;
         const netGain = Math.floor(finalPredReach * 0.008);
         const predictedFans = currentChannelMeta.currentFans + netGain;
-        document.getElementById('predictionResult').innerHTML = `♟️ 策略組合：貼文 ${postDelta>=0?'+'+postDelta:postDelta}篇/月｜按讚 ${likeDelta>=0?'+'+likeDelta:likeDelta}/篇｜分享 ${shareDelta>=0?'+'+shareDelta:shareDelta}/篇<br>📢 預估觸及: ${Math.round(finalPredReach).toLocaleString()}<br>♥️ 淨增粉絲: ${netGain.toLocaleString()}<br>➤ 預估粉絲總數: ${predictedFans.toLocaleString()}`;
+        document.getElementById('predictionResult').innerHTML = `♟️ 策略組合：貼文 ${postDelta>=0?'+'+postDelta:postDelta}篇/月｜按讚 ${likeDelta>=0?'+'+likeDelta:likeDelta}/篇｜分享 ${shareDelta>=0?'+'+shareDelta:shareDelta}/篇<br>📢 預估流量: ${Math.round(finalPredReach).toLocaleString()}<br>♥️ 淨增粉絲: ${netGain.toLocaleString()}<br>➤ 預估粉絲總數: ${predictedFans.toLocaleString()}`;
     }
     
     function updateDeadlineAndRedraw() {
