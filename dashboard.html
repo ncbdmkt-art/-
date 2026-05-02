@@ -798,11 +798,11 @@ function renderChannelRecap(){
         for(let c of channelData){
             // 只有被納入計算的頻道且互動率最低，才會亮起「最低互動率」的紅框
             const isLowest = (c.engagementRate === minEng && c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
-            let trafficLabel = '📊流量中位數';
-            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及帳號中位數';
-            if (c.platform === 'YouTube') trafficLabel = '📺觀看次數中位數';
-            if (c.platform === 'LINE') trafficLabel = '🗳️投票人數中位數';
-            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看中位數';
+            let trafficLabel = '📊流量MID';
+            if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及MID';
+            if (c.platform === 'YouTube') trafficLabel = '📺觀看MID';
+            if (c.platform === 'LINE') trafficLabel = '🗳️投票MID';
+            if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看MID';
             
             // ✅ 修正點 2：針對 IG、FB、LINE 隱藏互動率文字
             let engHtml = '';
