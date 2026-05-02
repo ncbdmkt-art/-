@@ -318,36 +318,86 @@
         }
         return 0;
     }
+function aggregateMonthlyByPlatform(posts) {
+        const groups = new Map();
+        for(let p of posts){
+            if(!p.date) continue;
+            const y = p.date.getFullYear();
+            const m = String(p.date.getMonth() + 1).padStart(2, '0');
+            const key = `${p.platform}_${y}-${m}`;
+            
+            if(!groups.has(key)) {
+                groups.set(key, { 
+                    platform: p.platform, 
+                    yearMonth: `${y}-${m}`, 
+                    year: y, 
+                    month: parseInt(m), 
+                    posts: [], totalReach: 0, totalViews: 0, totalLikes: 0, totalShares: 0, totalInteractions: 0 
+                });
+            }
+            const g = groups.get(key);
+            g.posts.push(p);
+            
+            // 為了讓 CoreMetrics (總量加總) 可以正常運作，保留原始總計
+            g.totalReach += (p.reach || 0);
+            g.totalViews += (p.views || 0);
+            g.totalLikes += (p.likes || 0);
+            g.totalShares += (p.shares || 0);
+            g.totalInteractions += (p.interactions || 0);
+        }
+        
+        const result = [];
+        for(let g of groups.values()){
             // ==========================================
-            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標
+            // 🎯 1. 依據「各平台客製化規則」抓取主要流量指標 (計算中位數專用)
             // ==========================================
             const traffics = g.posts.map(p => {
                 if (g.platform === 'YouTube') {
-                    // ✅ YouTube: 嚴格只抓「觀看次數 (views)」
                     return p.views || 0; 
                 } 
                 else if (g.platform === 'IG' || g.platform === 'FB') {
-                    // ✅ IG & FB: 嚴格只抓「觸及帳號數 (reach)」
                     return p.reach || 0;
                 }
                 else if (g.platform === 'LINE') {
-                    // LINE: 顯示「投票人數」
                     let voters = p.voters || (p.raw && p.raw['投票人數']) || 0;
                     return typeof voters === 'string' ? parseFloat(voters.replace(/,/g, '')) : voters;
                 } 
                 else if (g.platform === 'Threads') {
-                    // Threads: 顯示「粉絲觀看數」
                     let fanViews = p.fanViews || (p.raw && p.raw['粉絲觀看數']) || 0;
                     return typeof fanViews === 'string' ? parseFloat(fanViews.replace(/,/g, '')) : fanViews;
                 } 
                 else {
                     return p.reach || p.views || 0;
                 }
-            }).filter(val => !isNaN(val)).sort((a,b) => a - b); // 排序以計算中位數
-    function getMonthlyComparison(platform, monthlyAgg){
-        const data = monthlyAgg.filter(m=>m.platform===platform).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
-        if(data.length<2) return null;
-        return { latest:data[data.length-1], prev:data[data.length-2] };
+            }).filter(val => !isNaN(val)).sort((a,b) => a - b);
+
+            const medianTraffic = traffics.length ? traffics[Math.floor(traffics.length / 2)] : 0;
+
+            // ==========================================
+            // 🎯 2. 計算互動率中位數
+            // ==========================================
+            const engRates = g.posts.map(p => {
+                if (p.engagementRate && p.engagementRate > 0) return p.engagementRate;
+                let base = p.reach || p.views || 1; 
+                return (p.interactions / base) * 100;
+            }).filter(val => !isNaN(val)).sort((a,b) => a - b);
+            
+            const medianEngRate = engRates.length ? engRates[Math.floor(engRates.length / 2)] : 0;
+            
+            result.push({
+                platform: g.platform, yearMonth: g.yearMonth, year: g.year, month: g.month,
+                postCount: g.posts.length,
+                medianTraffic: medianTraffic,        
+                medianEngagementRate: medianEngRate, 
+                totalReach: g.totalReach,            // 保留給上方卡片總量計算用
+                totalViews: g.totalViews,
+                totalLikes: g.totalLikes,
+                totalShares: g.totalShares,
+                totalInteractions: g.totalInteractions,
+                posts: g.posts
+            });
+        }
+        return result;
     }
     function movingAverage(data, period=3){
         let result = [];
