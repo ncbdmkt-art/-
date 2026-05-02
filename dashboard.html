@@ -246,7 +246,21 @@
             <div id="dynamicAlertArea" class="alert-card card" style="display:none;"><div class="card-title">⚠️ 主動異常警示</div><div id="alertMessage"></div></div>
             <div class="card"><div class="card-title">📊 核心數據儀表板 (月增幅) <span style="font-size:0.7rem; background:#eef3ea; padding:4px 10px; border-radius:30px;"><i class="fas fa-chart-line"></i> 箭頭代表優於/劣於上月</span></div><div id="coreMetrics"></div></div>
             <div class="card"><div class="card-title">📐 內容槓桿率 (單篇平均產出 vs 上月)</div><div id="leverageContainer">計算中...</div></div>
-            <div class="card"><div class="card-title">📈 近月觸及趨勢 + 理想斜率 <span id="idealSlopeTooltip" style="cursor:help; font-size:0.8rem;" title="這條線代表如果每月淨增粉絲達到目標所需，每月觸及目標 = 粉絲缺口 ÷ 轉換率(0.8%) ÷ 剩餘月數">ⓘ</span></div><canvas id="reachTrendChart" height="160"></canvas><div class="info-note">📐 虛線：目標所需觸及斜率 | 實線(粗):3期移動平均 | 垂直虛線：內容策略調整點</div></div>
+            <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center;">
+                        📈 近月觸及趨勢 + 理想斜率 
+                        <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
+                </div>
+                <!-- 點擊後才會出現的隱藏說明框 -->
+                <div id="idealSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%;">
+                    <strong>📐 虛線 (理想斜率)：</strong>若要達成粉絲目標，每月需達到的觸及數基準。<br>
+                    <span style="color:#666; font-size:0.75rem;">(公式：粉絲缺口 ÷ 系統常數 0.8% ÷ 距離年底剩餘月數)</span><br>
+                    <strong>➖ 實線 (粗)：</strong>3期移動平均線 | <strong>⋮ 垂直虛線：</strong>內容策略調整點
+                </div>
+                <canvas id="reachTrendChart" height="160"></canvas>
+            </div>
             <div class="card"><div class="card-title">💬 近月互動率趨勢 (目標閾值 3.5%)</div><canvas id="engagementTrendChart" height="150"></canvas><div class="info-note">🔴 低於目標閾值背景為淡紅色 | 粗線為3期移動平均</div></div>
 
             <div class="simulator"><div class="card-title">📉 策略模擬與非線性風險預警 (線性回歸)</div>
@@ -273,6 +287,34 @@
 </div>
 
 <script>
+    // ======================== 指標字典 Modal 互動事件 ========================
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('dataDictModal');
+        const openBtn = document.getElementById('openDictBtn');
+        const closeBtn = document.getElementById('closeDictBtn');
+
+        openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.add('show'); });
+        closeBtn.addEventListener('click', () => { modal.classList.remove('show'); });
+        window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+
+        // 👇 趨勢圖 ⓘ 浮凸按鈕的點擊展開邏輯
+        const slopeBtn = document.getElementById('idealSlopeBtn');
+        const slopeInfo = document.getElementById('idealSlopeInfo');
+        
+        if(slopeBtn && slopeInfo) {
+            slopeBtn.addEventListener('click', () => {
+                if (slopeInfo.style.display === 'none') {
+                    // 展開，並讓按鈕凹陷
+                    slopeInfo.style.display = 'block';
+                    slopeBtn.classList.add('pressed'); 
+                } else {
+                    // 收合，按鈕恢復浮凸
+                    slopeInfo.style.display = 'none';
+                    slopeBtn.classList.remove('pressed'); 
+                }
+            });
+        }
+    });
     // ---------- 全域變數 ----------
     const DEFAULT_TARGETS = { IG:1500, LINE:300, Threads:100, YouTube:5 };
     let customTargets = { ...DEFAULT_TARGETS };
