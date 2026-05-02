@@ -119,13 +119,21 @@
 </div>
 
 <script>
-    // ---------- 全域變數 ----------
+// ---------- 全域變數 ----------
     const DEFAULT_TARGETS = { IG:1500, LINE:300, Threads:100, YouTube:5 };
     let customTargets = { ...DEFAULT_TARGETS };
     let targetDate = new Date(2026, 11, 31);
     let reachChart, engagementChart;
     let currentChannelMeta = { basePosts: 0, medianLike: 0, medianShare: 0, currentFans: 0 };
     let allPostsGlobal = [];
+    let monthlyAggGlobal = []; // ✅ 新增：集中儲存算好的月度數據，避免重複運算
+
+    // 🛡️ 資安小幫手：將危險的 HTML 標籤轉換成純文字符號
+    function escapeHTML(str) {
+        return String(str).replace(/[&<>'"]/g, 
+            tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
+        );
+    }
 
     // ---------- 基礎輔助函數 (保持原有邏輯不變) ----------
     function getAllPosts() {
@@ -215,19 +223,22 @@
     }
 
     // ========== 1. 優化後核心指標區 renderCoreMetrics (迴圈平台) ==========
-    function renderCoreMetrics() {
-        const monthlyAgg = aggregateMonthlyByPlatform(allPostsGlobal);
-        const targetPlatforms = ['IG', 'FB'];
-        const platformNameMap = { IG: 'Instagram', FB: 'Facebook' };
-        const iconMap = { IG: 'fa-instagram', FB: 'fa-facebook' };
+    function renderHighlightChampions(allPosts) {
+        const champs = findChampions(allPosts);
         
-        const formatChangeWithArrow = (currentVal, prevVal) => {
-            if (prevVal === undefined || prevVal === null || prevVal === 0) return '<span style="color:#aaa;"><i class="fas fa-minus-circle"></i> 持平</span>';
-            const change = ((currentVal - prevVal) / prevVal) * 100;
-            if (change > 0) return `<span class="trend-up"><i class="fas fa-arrow-up trend-icon"></i> +${change.toFixed(1)}%</span>`;
-            if (change < 0) return `<span class="trend-down"><i class="fas fa-arrow-down trend-icon"></i> ${change.toFixed(1)}%</span>`;
-            return `<span><i class="fas fa-minus-circle" style="color:#aaa;"></i> 持平</span>`;
+        // ✅ 使用 escapeHTML 把貼文內容包起來消毒
+        const buildCard = (item) => {
+            const rawContent = (item.post['貼文內容'] || '貼文').slice(0,25);
+            const safeContent = escapeHTML(rawContent); 
+            return `<div class="champion-card"><i class="fab fa-${item.platform.toLowerCase()}"></i> <strong>${item.platform}</strong><br>${safeContent}…<br>🔥 觸及 ${item.reach.toLocaleString()}</div>`;
         };
+
+        const monthHtml = champs.monthItems.length ? champs.monthItems.map(item => buildCard(item)).join('') : '<div class="champion-card">無資料</div>';
+        const quarterHtml = champs.quarterItems.length ? champs.quarterItems.map(item => buildCard(item)).join('') : '<div class="champion-card">無資料</div>';
+        const html = `<div class="highlight-champion"><strong>📅 本月最高觸及 (${champs.monthLabel})</strong><div class="champion-row">${monthHtml}</div></div>
+                      <div class="highlight-champion"><strong>📆 本季最高觸及 (${champs.quarterLabel})</strong><div class="champion-row">${quarterHtml}</div></div>`;
+        document.getElementById('highlightPostContainer').innerHTML = html;
+    }
         
         const buildMetricRow = (label, icon, mainValue, mainUnit, changeHtml) => `
             <div class="metric-row">
@@ -568,19 +579,28 @@
     function mainRender(){
         allPostsGlobal = getAllPosts();
         if(!allPostsGlobal.length) return;
-        const monthlyAgg = aggregateMonthlyByPlatform(allPostsGlobal);
-        renderChannelRecap(monthlyAgg);
+        
+        // ✅ 網頁載入時，只算這唯一的一次！
+        monthlyAggGlobal = aggregateMonthlyByPlatform(allPostsGlobal);
+        
+        // 下面全部改吃 monthlyAggGlobal
+        renderChannelRecap(monthlyAggGlobal);
         renderRhythmCards(allPostsGlobal);
         renderGoals();
         renderHighlightChampions(allPostsGlobal);
         renderLeverage();
         renderCoreMetrics();
-        renderReachChart(monthlyAgg);
-        renderEngagementChart(monthlyAgg);
+        renderReachChart(monthlyAggGlobal);
+        renderEngagementChart(monthlyAggGlobal);
         updateSimulatorBase();
         updateSimulation();
+        
         const datePicker = document.getElementById('customTargetDate');
-        if(datePicker){ datePicker.removeEventListener('change', updateDeadlineAndRedraw); datePicker.addEventListener('change', updateDeadlineAndRedraw); updateDeadlineAndRedraw(); }
+        if(datePicker){ 
+            datePicker.removeEventListener('change', updateDeadlineAndRedraw); 
+            datePicker.addEventListener('change', updateDeadlineAndRedraw); 
+            // 首次載入已畫過圖表，不需要在此重複呼叫 updateDeadlineAndRedraw
+        }
         const channelSelect = document.getElementById('channelSelect');
         channelSelect.addEventListener('change', ()=>{ updateSimulatorBase(); updateSimulation(); });
         document.getElementById('postDeltaCount').addEventListener('input', (e)=>{ document.getElementById('postCountDeltaVal').innerText = e.target.value; updateSimulation(); });
