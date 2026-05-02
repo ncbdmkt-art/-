@@ -8,30 +8,83 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { background:#eef5ea; font-family:'Inter',sans-serif; padding:40px 20px; color:#2c3e2f; }
-        .container { max-width:1200px; margin:0 auto; }
-        h1 { font-size:2rem; margin-bottom:8px; }
-        .sub { margin-bottom:40px; color:#5a7452; }
-        .upload-grid { display:flex; flex-wrap:wrap; gap:32px; margin-bottom:48px; }
-        .upload-card { flex:1; min-width:280px; background:white; border-radius:32px; padding:24px; box-shadow:0 6px 14px rgba(0,0,0,0.05); }
-        .upload-card h2 { font-size:1.4rem; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
-        .upload-area { border:2px dashed #c5e0b4; border-radius:24px; padding:32px 20px; text-align:center; margin:16px 0; cursor:pointer; transition:0.2s; }
-        .upload-area:hover { background:#fafdf5; border-color:#7cb342; }
-        .file-list { margin-top:16px; font-size:0.8rem; max-height:200px; overflow-y:auto; background:#f9fbf5; border-radius:20px; padding:12px; }
-        .file-item { padding:4px 0; border-bottom:1px solid #e2e8e0; }
-        .btn { background:#7cb342; color:white; border:none; padding:8px 24px; border-radius:40px; font-weight:600; cursor:pointer; margin-top:16px; width:100%; }
-        .btn-secondary { background:#e4ecd9; color:#2c5e2a; margin-top:8px; }
-        .nav-links { margin-top:40px; display:flex; gap:24px; justify-content:center; flex-wrap:wrap; }
-        .nav-links a { background:white; padding:12px 24px; border-radius:40px; text-decoration:none; color:#2c5e2a; font-weight:600; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
-        .nav-links a:hover { background:#7cb342; color:white; }
-        hr { margin:24px 0; border-color:#dcecd0; }
-        .status { margin-top:12px; font-size:0.8rem; max-height:150px; overflow-y:auto; }
-        .error { color:#d9534f; }
-        .success { color:#5cb85c; }
-        .info { color:#5bc0de; }
-        .small-note { font-size:0.75rem; color:#5a7452; margin-top:8px; }
-        .debug-tip { background:#fef7e0; border-left:4px solid #f0ad4e; padding:8px 12px; margin-top:12px; font-size:0.7rem; border-radius:12px; }
+    /* =========================================================
+       1. 建立「色票變數中心」：未來要改品牌顏色，只要改這裡就好！
+       ========================================================= */
+    :root {
+        /* 🟩 主品牌色系 (綠色) */
+        --primary: #7cb342;          /* 主按鈕、主要強調色 */
+        --primary-dark: #5a7452;     /* 次要文字、說明標籤 */
+        --primary-text: #2c5e2a;     /* 導覽列連結、次要按鈕文字 */
+        
+        /* ⬜ 背景色系 */
+        --bg-main: #eef5ea;          /* 網頁最底層大背景 */
+        --bg-card: #ffffff;          /* 白色卡片背景 */
+        --bg-card-inner: #f9fbf5;    /* 卡片內的淺色區塊 (如檔案列表) */
+        --bg-hover: #fafdf5;         /* 滑鼠移過去的背景色 */
+        --btn-sec-bg: #e4ecd9;       /* 次要按鈕背景色 */
+        
+        /* 📏 邊框與文字色系 */
+        --text-main: #2c3e2f;        /* 網頁主要文字顏色 */
+        --border-light: #c5e0b4;     /* 虛線邊框色 */
+        --border-muted: #e2e8e0;     /* 分隔線色 */
+        --hr-color: #dcecd0;         /* 底部大分隔線色 */
+
+        /* 🔴🟢 系統狀態色 (成功、錯誤、警告) */
+        --status-error: #d9534f;
+        --status-success: #5cb85c;
+        --status-info: #5bc0de;
+        --status-warn-bg: #fef7e0;
+        --status-warn-border: #f0ad4e;
+    }
+
+    /* =========================================================
+       2. 以下是你原本的排版，只是把顏色換成 var(--變數) 呼叫
+       ========================================================= */
+    * { margin:0; padding:0; box-sizing:border-box; }
+    
+    body { 
+        background: var(--bg-main); /* 使用變數 */
+        font-family: 'Inter', sans-serif; 
+        padding: 40px 20px; 
+        color: var(--text-main);    /* 使用變數 */
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 2rem; margin-bottom: 8px; }
+    
+    .sub { margin-bottom: 40px; color: var(--primary-dark); }
+    
+    .upload-grid { display: flex; flex-wrap: wrap; gap: 32px; margin-bottom: 48px; }
+    .upload-card { flex: 1; min-width: 280px; background: var(--bg-card); border-radius: 32px; padding: 24px; box-shadow: 0 6px 14px rgba(0,0,0,0.05); }
+    .upload-card h2 { font-size: 1.4rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    
+    .upload-area { border: 2px dashed var(--border-light); border-radius: 24px; padding: 32px 20px; text-align: center; margin: 16px 0; cursor: pointer; transition: 0.2s; }
+    .upload-area:hover { background: var(--bg-hover); border-color: var(--primary); }
+    .upload-area i { color: var(--primary) !important; } /* 確保 icon 吃主色 */
+    
+    .file-list { margin-top: 16px; font-size: 0.8rem; max-height: 200px; overflow-y: auto; background: var(--bg-card-inner); border-radius: 20px; padding: 12px; }
+    .file-item { padding: 4px 0; border-bottom: 1px solid var(--border-muted); }
+    
+    .btn { background: var(--primary); color: white; border: none; padding: 8px 24px; border-radius: 40px; font-weight: 600; cursor: pointer; margin-top: 16px; width: 100%; transition: 0.2s; }
+    .btn:hover { filter: brightness(0.95); } /* 偷偷幫你加了懸停變暗的小細節 */
+    
+    .btn-secondary { background: var(--btn-sec-bg); color: var(--primary-text); margin-top: 8px; }
+    
+    .nav-links { margin-top: 40px; display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+    .nav-links a { background: var(--bg-card); padding: 12px 24px; border-radius: 40px; text-decoration: none; color: var(--primary-text); font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: 0.2s; }
+    .nav-links a:hover { background: var(--primary); color: white; }
+    
+    hr { margin: 24px 0; border-color: var(--hr-color); }
+    
+    .status { margin-top: 12px; font-size: 0.8rem; max-height: 150px; overflow-y: auto; }
+    .error { color: var(--status-error); }
+    .success { color: var(--status-success); }
+    .info { color: var(--status-info); }
+    
+    .small-note { font-size: 0.75rem; color: var(--primary-dark); margin-top: 8px; }
+    
+    .debug-tip { background: var(--status-warn-bg); border-left: 4px solid var(--status-warn-border); padding: 8px 12px; margin-top: 12px; font-size: 0.7rem; border-radius: 12px; }
+</style>
     </style>
 </head>
 <body>
