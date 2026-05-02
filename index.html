@@ -141,40 +141,47 @@
     // ======================== 🔧 強化版日期解析（核心修復） ========================
     function parseDate(value) {
         if (!value) return null;
+        let str = String(value).trim().replace(/\s+/g, '');
         
-        let cleaned = String(value).replace(/\s+/g, '');
-        if (cleaned === '') return null;
-        
-        let d = new Date(cleaned);
+        // ==========================================
+        // 🛡️ 1. Excel 序列號終極破解 (支援 46141, 46141.5, 46141-01)
+        // ==========================================
+        // 使用正則表達式，只要開頭是 5 位數字 (現代 Excel 日期)，就強制攔截，不管尾巴帶什麼符號
+        const excelMatch = str.match(/^(\d{5})(?:[\-\.]\d+)?$/);
+        if (excelMatch) {
+            const days = parseInt(excelMatch[1], 10);
+            // Excel 的基準日換算成 JavaScript 的基準日，需扣除 25569 天，再乘以每天的毫秒數 (86400000)
+            return new Date((days - 25569) * 86400000);
+        }
+
+        // ==========================================
+        // 🛡️ 2. 處理標準斜線或破折號 (YYYY/MM/DD 或 YYYY-MM-DD)
+        // ==========================================
+        const parts = str.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+        if (parts) {
+            const y = parseInt(parts[1], 10);
+            const m = parseInt(parts[2], 10) - 1; // JS 的月份是 0~11
+            const d = parseInt(parts[3], 10);
+            return new Date(y, m, d);
+        }
+
+        // ==========================================
+        // 🛡️ 3. 處理純中文格式 (YYYY年MM月DD日)
+        // ==========================================
+        const zhParts = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+        if (zhParts) {
+            const y = parseInt(zhParts[1], 10);
+            const m = parseInt(zhParts[2], 10) - 1;
+            const d = parseInt(zhParts[3], 10);
+            return new Date(y, m, d);
+        }
+
+        // ==========================================
+        // 🛡️ 4. 原生兜底解析 (最後的安全網)
+        // ==========================================
+        const d = new Date(str);
         if (!isNaN(d.getTime())) return d;
-        
-        let match = cleaned.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
-        if (match) {
-            let year = match[1];
-            let month = match[2].padStart(2, '0');
-            let day = match[3].padStart(2, '0');
-            let isoStr = `${year}-${month}-${day}`;
-            let parsed = new Date(isoStr);
-            if (!isNaN(parsed.getTime())) return parsed;
-        }
-        
-        let chineseMatch = cleaned.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
-        if (chineseMatch) {
-            let year = chineseMatch[1];
-            let month = chineseMatch[2].padStart(2, '0');
-            let day = chineseMatch[3].padStart(2, '0');
-            let parsed = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(parsed.getTime())) return parsed;
-        }
-        
-        if (!isNaN(Number(cleaned))) {
-            let excelDate = new Date((Number(cleaned) - 25569) * 86400000);
-            if (!isNaN(excelDate.getTime())) return excelDate;
-        }
-        
-        let lastTry = new Date(value);
-        if (!isNaN(lastTry.getTime())) return lastTry;
-        
+
         return null;
     }
     // ======================== 🗄️ 資料連接總管 (Data Manager) ========================
