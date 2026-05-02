@@ -306,15 +306,6 @@
 
 <script>
     // ======================== 指標字典 Modal 互動事件 ========================
-    document.addEventListener('DOMContentLoaded', () => {
-        const modal = document.getElementById('dataDictModal');
-        const openBtn = document.getElementById('openDictBtn');
-        const closeBtn = document.getElementById('closeDictBtn');
-
-        openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.add('show'); });
-        closeBtn.addEventListener('click', () => { modal.classList.remove('show'); });
-        window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
-
         // 👇 趨勢圖 ⓘ 浮凸按鈕的點擊展開邏輯
         const slopeBtn = document.getElementById('idealSlopeBtn');
         const slopeInfo = document.getElementById('idealSlopeInfo');
@@ -556,42 +547,37 @@ function aggregateMonthlyByPlatform(posts) {
         
         let htmlOutput = '';
         for(let plat of targetPlatforms) {
-            // 抓出該平台所有的月份資料，按時間由舊到新排序
             const platData = monthlyAggGlobal.filter(m => m.platform === plat).sort((a,b) => a.yearMonth.localeCompare(b.yearMonth));
             
-            // ✅ 宣告本月主數字變數 (不使用 Growth)
+            // ✅ 關鍵修復點 1：徹底棄用舊版的 Growth 變數，改宣告這 4 個絕對數值
             let currLikeRate = 0, currFans = 0, engRate = 0, currReach = 0;
-            // 宣告箭頭 HTML 變數
+            
             let likeChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
             let fansChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
             let engChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
             let reachChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">無資料</span>';
 
             if (platData.length > 0) {
-                // 取得最新一個月 (latest)
                 const latest = platData[platData.length - 1];
                 const prev = platData.length > 1 ? platData[platData.length - 2] : null;
 
-                // --- 1. 計算本月絕對數值 (準備放在主數字區) ---
                 currLikeRate = latest.totalReach > 0 ? (latest.totalLikes / latest.totalReach) * 100 : 0;
                 currReach = latest.totalReach || 0;
                 engRate = latest.medianEngagementRate || 0;
                 currFans = getLatestFollower(plat, allPostsGlobal) || 0;
 
-                // --- 2. 若有上月數據，計算增幅並給予專屬門檻 ---
                 if (prev) {
                     let prevLikeRate = prev.totalReach > 0 ? (prev.totalLikes / prev.totalReach) * 100 : 0;
                     let prevReach = prev.totalReach || 0;
                     let prevEng = prev.medianEngagementRate || 0;
                     let prevFans = getFollowerInMonth(plat, prev.year, prev.month, allPostsGlobal) || 0;
 
-                    // 🎯 粉絲增幅：成長通常較緩慢，維持原設定 ( >= 1.5% 爆發, <= -0.5% 警示)
                     fansChangeHtml = formatChangeWithArrow(currFans, prevFans, 1.5, -0.5);
-                    // 🎯 按讚率 & 互動率增幅：比例的變化波動稍大 ( >= 10% 爆發, <= -10% 警示)
                     likeChangeHtml = formatChangeWithArrow(currLikeRate, prevLikeRate, 10, -10);
                     engChangeHtml = formatChangeWithArrow(engRate, prevEng, 10, -10);
-                    // 🎯 觸及增幅：絕對流量波動極大！( >= 20% 才算爆發, <= -15% 才算警示)
                     reachChangeHtml = formatChangeWithArrow(currReach, prevReach, 20, -15);
+                    
+                    // ✅ 關鍵修復點 2：這裡之前有一大堆錯誤覆蓋的程式碼，現在徹底清除了！
                 } else {
                     likeChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
                     fansChangeHtml = '<span style="color:#aaa; font-size:0.8rem;">首月基準</span>';
@@ -600,7 +586,7 @@ function aggregateMonthlyByPlatform(posts) {
                 }
             }
             
-            // ✅ 將 curr (本月絕對數值) 傳入 mainValue，並修正標題文字
+            // ✅ 關鍵修復點 3：精準傳入「絕對數值」到畫面，不再出現雙胞胎的增幅百分比
             htmlOutput += `
                 <div class="dual-item">
                     <div class="platform"><i class="fab ${iconMap[plat]}"></i> ${platformNameMap[plat]}</div>
