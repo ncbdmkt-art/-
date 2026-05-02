@@ -262,7 +262,6 @@
             raw: row
         };
     }
-        };
         
         let views = toNumber(normalized['觀看數'] ?? normalized['母串觀看數'] ?? normalized['views'] ?? 0);
         let likes = toNumber(normalized['點讚數'] ?? normalized['likes'] ?? 0);
@@ -284,7 +283,6 @@
             retentionRate: 0, 
             raw: row
         };
-    }
 
     function parseCSVtoPosts(jsonRows, channel) {
         const posts = [];
