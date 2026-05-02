@@ -370,10 +370,7 @@
                         if (posts.length === 0) {
                             throw new Error(`無法解析出有效貼文。請檢查CSV欄位名稱。`);
                         }
-                        const key = `posts_${channel}`;
-                        let existing = JSON.parse(localStorage.getItem(key) || '[]');
-                        existing = existing.concat(posts);
-                        localStorage.setItem(key, JSON.stringify(existing));
+                        DataManager.saveSocialPosts(channel, posts);
                         
                         appendStatusMessage(statusDiv, `✅ ${file.name} → ${channel} (成功匯入 ${posts.length} 筆貼文)`, 'success');
                     } catch (err) {
@@ -389,19 +386,16 @@
                 const channels = ['IG', 'FB', 'LINE', 'YouTube', 'Threads'];
                 let html = '', hasAny = false;
                 channels.forEach(ch => {
-                    const raw = localStorage.getItem(`posts_${ch}`);
-                    if (raw) {
-                        try {
-                            const count = JSON.parse(raw).length;
-                            html += `<div class="file-item">📁 ${ch} : ${count} 筆貼文</div>`;
-                            hasAny = true;
-                        } catch(e) {}
+                    const posts = DataManager.getSocialPosts(ch);
+                    if (posts && posts.length > 0) {
+                        html += `<div class="file-item">📁 ${ch} : ${posts.length} 筆貼文</div>`;
+                        hasAny = true;
                     }
                 });
                 document.getElementById('socialFileList').innerHTML = hasAny ? html : '尚未上傳任何社群檔案';
             },
             clearData: () => {
-                ['IG', 'FB', 'LINE', 'YouTube', 'Threads'].forEach(ch => localStorage.removeItem(`posts_${ch}`));
+                DataManager.clearAllSocialPosts();
                 sections[0].updateDisplay();
                 const statusDiv = document.getElementById('socialStatus');
                 statusDiv.innerHTML = '';
@@ -427,9 +421,7 @@
                     try {
                         const rows = await readCSVFile(file);
                         if (!rows.length) throw new Error('CSV 無資料列');
-                        let existing = JSON.parse(localStorage.getItem('feedbackData') || '[]');
-                        existing = existing.concat(rows);
-                        localStorage.setItem('feedbackData', JSON.stringify(existing));
+                        DataManager.saveFeedback(rows);
                         
                         appendStatusMessage(statusDiv, `✅ ${file.name} (匯入 ${rows.length} 筆回饋)`, 'success');
                     } catch (err) {
@@ -440,15 +432,12 @@
                 if (updateDisplayFn) updateDisplayFn();
             },
             updateDisplay: () => {
-                const raw = localStorage.getItem('feedbackData');
-                let count = 0;
-                if (raw) {
-                    try { count = JSON.parse(raw).length; } catch(e) {}
-                }
+                const feedbackData = DataManager.getFeedback();
+                const count = feedbackData ? feedbackData.length : 0;
                 document.getElementById('feedbackFileList').innerHTML = count ? `📋 已上傳 ${count} 筆回饋記錄` : '尚未上傳任何回饋表單';
             },
             clearData: () => {
-                localStorage.removeItem('feedbackData');
+                DataManager.clearFeedback();
                 sections[1].updateDisplay();
                 const statusDiv = document.getElementById('feedbackStatus');
                 statusDiv.innerHTML = '';
