@@ -212,58 +212,70 @@
         }
         return all;
     }
-    function getRawNumber(row, aliases, defaultValue=0) {
-        let target = row.raw || row;
-        for (let a of aliases) {
-            let v = target[a];
-            if (v !== undefined && v !== null) { let n = Number(v); if(!isNaN(n)) return n; }
-        }
-        return defaultValue;
-    }
+    // ✅ 極致簡化的粉絲抓取
     function getLatestFollower(platform, posts) {
-        const platPosts = posts.filter(p=>p.platform===platform);
+        const platPosts = posts.filter(p => p.platform === platform);
         if(!platPosts.length) return 0;
-        const sorted = [...platPosts].sort((a,b)=>b.date - a.date);
-        for(let p of sorted){
-            let val = getRawNumber(p, ['粉絲數','追蹤人數','fans','followers','subscribers'], null);
-            if(val && !isNaN(val) && val>0) return val;
+        const sorted = [...platPosts].sort((a,b) => b.date - a.date);
+        // 直接從最新的一篇貼文抓取已經洗好的 followers，若為 0 則繼續往上一篇找
+        for(let p of sorted) {
+            if (p.followers && p.followers > 0) return p.followers;
         }
         return 0;
     }
+
     function getFollowerInMonth(platform, year, month, allPosts) {
         const monthPosts = allPosts.filter(p => p.platform === platform && p.date && p.date.getFullYear() === year && p.date.getMonth()+1 === month);
-        if(monthPosts.length === 0) return 0;
-        const sorted = [...monthPosts].sort((a,b)=>b.date - a.date);
-        for(let p of sorted){
-            let val = getRawNumber(p, ['粉絲數','追蹤人數','fans','followers','subscribers'], null);
-            if(val && !isNaN(val) && val>0) return val;
+        if(!monthPosts.length) return 0;
+        const sorted = [...monthPosts].sort((a,b) => b.date - a.date);
+        for(let p of sorted) {
+            if (p.followers && p.followers > 0) return p.followers;
         }
         return 0;
     }
-    function aggregateMonthlyByPlatform(posts) {
+function aggregateMonthlyByPlatform(posts) {
         const groups = new Map();
         for(let p of posts){
             if(!p.date) continue;
-            const y = p.date.getFullYear(), m = p.date.getMonth()+1;
+            const y = p.date.getFullYear();
+            const m = String(p.date.getMonth() + 1).padStart(2, '0');
             const key = `${p.platform}_${y}-${m}`;
-            if(!groups.has(key)) groups.set(key, { platform:p.platform, yearMonth:`${y}-${m}`, year:y, month:m, posts:[], totalReach:0, totalLikes:0, totalShares:0, totalInteractions:0 });
+            
+            if(!groups.has(key)) {
+                groups.set(key, { 
+                    platform: p.platform, yearMonth: `${y}-${m}`, year: y, month: parseInt(m), 
+                    posts: [], totalReach: 0, totalViews: 0, totalLikes: 0, totalShares: 0, totalInteractions: 0 
+                });
+            }
             const g = groups.get(key);
             g.posts.push(p);
-            g.totalReach += getRawNumber(p, ['觸及帳號','觸及數','reach','views'],0);
-            g.totalLikes += getRawNumber(p, ['點讚數','likes'],0);
-            g.totalShares += getRawNumber(p, ['分享數','轉發數','shares','share_count'],0);
-            g.totalInteractions += getRawNumber(p, ['互動數','interactions'],0);
+            
+            // ✅ 直接讀取標準化屬性，無比輕鬆！
+            g.totalReach += (p.reach || 0);
+            g.totalViews += (p.views || 0);
+            g.totalLikes += (p.likes || 0);
+            g.totalShares += (p.shares || 0);
+            g.totalInteractions += (p.interactions || 0);
         }
+        
         const result = [];
         for(let g of groups.values()){
-            const engRates = g.posts.map(p=>{ let inter=getRawNumber(p,['互動數','interactions'],0); let r=getRawNumber(p,['觸及帳號','reach','views'],0); return r>0 ? (inter/r)*100 : 0; });
-            engRates.sort((a,b)=>a-b);
+            // ✅ 互動率智慧判斷：優先使用已算好的 p.engagementRate (對 YT 極為重要)
+            const engRates = g.posts.map(p => {
+                if (p.engagementRate > 0) return p.engagementRate;
+                // 若沒有預先算好，則用：互動數 / (觸及或觀看) 
+                let base = p.reach || p.views || 1; 
+                return (p.interactions / base) * 100;
+            }).sort((a,b) => a - b);
+            
             result.push({
-                platform:g.platform, yearMonth:g.yearMonth, year:g.year, month:g.month,
-                totalReach:g.totalReach, postCount:g.posts.length,
-                medianEngagementRate: engRates.length? engRates[Math.floor(engRates.length/2)] : 0,
-                totalLikes:g.totalLikes, totalShares:g.totalShares, totalInteractions:g.totalInteractions,
-                posts:g.posts
+                platform: g.platform, yearMonth: g.yearMonth, year: g.year, month: g.month,
+                totalReach: g.totalReach, 
+                totalViews: g.totalViews, // ✅ 新增總觀看數
+                postCount: g.posts.length,
+                medianEngagementRate: engRates.length ? engRates[Math.floor(engRates.length/2)] : 0,
+                totalLikes: g.totalLikes, totalShares: g.totalShares, totalInteractions: g.totalInteractions,
+                posts: g.posts
             });
         }
         return result;
@@ -497,8 +509,9 @@
                 html += `<div class="lever-row"><span>💬 互動槓桿率</span><span>${Math.round(latestInteractPerPost)} 互動/篇 <span class="lever-change ${changeColor(interactChange)}">${changeIcon(interactChange)} ${interactChange>0?'+':''}${interactChange.toFixed(1)}%</span></span></div>`;
             }
             if(plat === 'Threads') {
-                const nonFansRatio = latest.posts.length ? (latest.posts.reduce((sum,p)=> sum + getRawNumber(p, ['非粉絲比例','非粉絲占比','non_fans_ratio'],0),0)/latest.posts.length) : 0;
-                const threadView = latest.posts.length ? (latest.posts.reduce((sum,p)=> sum + getRawNumber(p, ['母串觀看數','thread_views','views'],0),0)/latest.posts.length) : 0;
+                // ✅ 直接讀取 p.nonFansPercent 和 p.views
+                const nonFansRatio = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.nonFansPercent || 0), 0) / latest.posts.length) : 0;
+                const threadView = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.views || 0), 0) / latest.posts.length) : 0;
                 html += `<div class="lever-row"><span>📢 非粉絲佔比</span><span>${nonFansRatio.toFixed(1)}%</span></div>`;
                 html += `<div class="lever-row"><span>🔗 母串觀看數</span><span>${Math.round(threadView).toLocaleString()} 次/篇</span></div>`;
             }
