@@ -676,32 +676,47 @@
         document.getElementById('highlightPostContainer').innerHTML = html;
     }
     
-    function renderLeverage() {
+function renderLeverage() {
         const platforms = ['IG', 'FB', 'Threads'];
         let html = '';
         for(let plat of platforms){
             const data = monthlyAggGlobal.filter(m=>m.platform===plat).sort((a,b)=>a.yearMonth.localeCompare(b.yearMonth));
             if(data.length < 2) continue;
+            
             const latest = data[data.length-1];
             const prev = data[data.length-2];
-            const latestReachPerPost = latest.totalReach / latest.postCount;
-            const prevReachPerPost = prev.totalReach / prev.postCount;
-            const reachChange = ((latestReachPerPost - prevReachPerPost) / prevReachPerPost) * 100;
+            
+            // ✅ 修正點 1：動態判斷基數，Threads 使用 totalViews，其餘使用 totalReach
+            const latestBaseTraffic = (plat === 'Threads') ? latest.totalViews : latest.totalReach;
+            const prevBaseTraffic = (plat === 'Threads') ? prev.totalViews : prev.totalReach;
+            
+            const latestReachPerPost = latestBaseTraffic / latest.postCount;
+            const prevReachPerPost = prevBaseTraffic / prev.postCount;
+            const reachChange = prevReachPerPost > 0 ? ((latestReachPerPost - prevReachPerPost) / prevReachPerPost) * 100 : 0;
+            
             const latestInteractPerPost = latest.totalInteractions / latest.postCount;
             const prevInteractPerPost = prev.totalInteractions / prev.postCount;
-            const interactChange = ((latestInteractPerPost - prevInteractPerPost) / prevInteractPerPost) * 100;
+            const interactChange = prevInteractPerPost > 0 ? ((latestInteractPerPost - prevInteractPerPost) / prevInteractPerPost) * 100 : 0;
+            
             const changeIcon = (val) => val>0 ? '<span class="trend-up">▲</span>' : (val<0 ? '<span class="trend-down">▼</span>' : '●');
             const changeColor = (val) => val>0 ? 'trend-up' : (val<0 ? 'trend-down' : '');
             
+            // ✅ 修正點 2：動態標籤名稱
+            const leverageLabel = (plat === 'Threads') ? '📊 觀看槓桿率' : '📊 觸及槓桿率';
+            
             html += `<div style="margin-top:12px;"><strong><i class="fab fa-${plat==='YouTube'?'youtube':plat.toLowerCase()}"></i> ${plat}</strong></div>`;
-            html += `<div class="lever-row"><span>📊 觸及槓桿率</span><span>${Math.round(latestReachPerPost).toLocaleString()} 次/篇 <span class="lever-change ${changeColor(reachChange)}">${changeIcon(reachChange)} ${reachChange>0?'+':''}${reachChange.toFixed(1)}%</span></span></div>`;
+            html += `<div class="lever-row"><span>${leverageLabel}</span><span>${Math.round(latestReachPerPost).toLocaleString()} 次/篇 <span class="lever-change ${changeColor(reachChange)}">${changeIcon(reachChange)} ${reachChange>0?'+':''}${reachChange.toFixed(1)}%</span></span></div>`;
+            
             if(plat === 'IG' || plat === 'Threads') {
                 html += `<div class="lever-row"><span>💬 互動槓桿率</span><span>${Math.round(latestInteractPerPost)} 互動/篇 <span class="lever-change ${changeColor(interactChange)}">${changeIcon(interactChange)} ${interactChange>0?'+':''}${interactChange.toFixed(1)}%</span></span></div>`;
             }
             if(plat === 'Threads') {
                 const nonFansRatio = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.nonFansPercent || 0), 0) / latest.posts.length) : 0;
+                // ✅ 修正點 3：Threads 特有的母串觀看數 (已在 Leverage 第一行處理，保留這行做參考或移除皆可，目前先幫你保留原始邏輯但精簡化)
                 const threadView = latest.posts.length ? (latest.posts.reduce((sum, p) => sum + (p.views || 0), 0) / latest.posts.length) : 0;
+                
                 html += `<div class="lever-row"><span>📢 非粉絲佔比</span><span>${nonFansRatio.toFixed(1)}%</span></div>`;
+                // 因為上面已經把「觸及槓桿率」改成「觀看槓桿率」了，底下這行其實重複了，但我先保留，你可以看畫面決定要不要刪除最後一行 <div>
                 html += `<div class="lever-row"><span>🔗 母串觀看數</span><span>${Math.round(threadView).toLocaleString()} 次/篇</span></div>`;
             }
         }
