@@ -222,7 +222,7 @@
         return normalized;
     }
 
-    function mapPostFromRow(row, fallbackChannel) {
+function mapPostFromRow(row, fallbackChannel) {
         const normalized = normalizeRowKeys(row);
         
         let rawDateValue = normalized['發佈日期'] || normalized['date'] || normalized['貼文日期'] || null;
@@ -230,54 +230,122 @@
             rawDateValue = rawDateValue.replace(/[^\d\/\-\s]/g, ''); 
         }
         let date = rawDateValue ? parseDate(rawDateValue) : null;
-        
-        if (!date) {
-            console.warn(`⚠️ 日期解析失敗，原始值: "${normalized['發佈日期'] || 'null'}"`);
-            return null;
-        }
+        if (!date) return null;
         
         let platform = normalized['發布管道'] || normalized['platform'] || '';
         if (!platform && fallbackChannel) platform = fallbackChannel;
-        if (!platform) {
-            console.warn(`⚠️ 缺少平台資訊，日期: ${date.toISOString()}`);
-            return null;
-        }
+        if (!platform) return null;
         
         const toNumber = (val) => {
             if (val === undefined || val === null || val === '') return 0;
             let strVal = String(val).trim();
             if (strVal === '-' || strVal === 'N/A') return 0;
             strVal = strVal.replace(/,/g, '');
-            if (strVal.includes('%')) {
-                strVal = strVal.replace(/%/g, '');
-            }
+            if (strVal.includes('%')) strVal = strVal.replace(/%/g, '');
             let num = parseFloat(strVal);
             return isNaN(num) ? 0 : num;
         };
+
+        const extractMetric = (rowObj, keywordArray) => {
+            const keys = Object.keys(rowObj);
+            for (let keyword of keywordArray) {
+                const matchedKey = keys.find(k => k.includes(keyword.toLowerCase()));
+                if (matchedKey && rowObj[matchedKey] !== undefined && rowObj[matchedKey] !== '') {
+                    return toNumber(rowObj[matchedKey]);
+                }
+            }
+            return 0; 
+        };
+
+        const extractString = (rowObj, keywordArray) => {
+            const keys = Object.keys(rowObj);
+            for (let keyword of keywordArray) {
+                const matchedKey = keys.find(k => k.includes(keyword.toLowerCase()));
+                if (matchedKey && rowObj[matchedKey]) {
+                    return String(rowObj[matchedKey]).trim();
+                }
+            }
+            return ''; 
+        };
+
+        // ==========================================
+        // 1. 觸及與觀看 (嚴格拆分)
+        // ==========================================
+        let reach = extractMetric(normalized, ['觸及帳號', '觸及人數', 'reach', '觸及']);
+        let views = extractMetric(normalized, ['母串觀看', '觀看次數', '觀看', 'views', '瀏覽']);
         
-        let views = toNumber(normalized['觀看數'] ?? normalized['觸及帳號'] ?? normalized['views']);
-        let likes = toNumber(normalized['點讚數'] ?? normalized['likes']);
-        let shares = toNumber(normalized['分享數'] ?? normalized['repost/點擊連結'] ?? normalized['shares']);
-        let saves = toNumber(normalized['儲存數'] ?? normalized['saves']);
-        let interactions = toNumber(normalized['互動數'] ?? normalized['interactions']);
-        let nonFansPercent = toNumber(normalized['非粉絲比例'] ?? normalized['nonfanspercent']);
+        // ==========================================
+        // 2. 基礎互動指標提取
+        // ==========================================
+        let likes = extractMetric(normalized, ['點讚', '喜歡', '讚', 'likes']);
+        let shares = extractMetric(normalized, ['repost', '引用', '轉發', '分享', '點擊連結', 'shares']);
+        let comments = extractMetric(normalized, ['留言', '回覆', 'comments']); 
+        let interactions = extractMetric(normalized, ['互動數', '互動', 'interactions']);
         
-        let hasIP = (normalized['標籤'] && /ip/i.test(normalized['標籤'])) || 
-                    (normalized['活動主題'] && /ip/i.test(normalized['活動主題']));
+        let followers = extractMetric(normalized, ['粉絲數', '追蹤人數', '訂閱', 'followers']);
+        let nonFansPercent = extractMetric(normalized, ['非粉絲比例', '非粉絲', 'nonfans']);
+        let engagementRate = extractMetric(normalized, ['互動率', 'engagement rate']);
+
+        // ==========================================
+        // 3. YouTube 專屬運算邏輯攔截器
+        // ==========================================
+        if (platform === 'YouTube') {
+            // YT 自動加總：點讚 + 留言 + 分享
+            interactions = likes + comments + shares;
+            
+            // YT 互動率：互動數 / 訂閱者數 * 100%
+            if (followers > 0) {
+                engagementRate = parseFloat(((interactions / followers) * 100).toFixed(2));
+            }
+        }
+
+        // ==========================================
+        // 4. 文字與類別處理 (標籤+專案類型 = 主題類別)
+        // ==========================================
+        let title = extractString(normalized, ['串文名稱', '活動主題', 'title']) || '無標題';
+        let format = extractString(normalized, ['格式', 'format']);
         
+        // 提取標籤與專案類型，並合併 (如果都有則用 ' - ' 連接，如果都沒有就回傳 '無')
+        let rawTag = extractString(normalized, ['標籤', 'tags']);
+        let rawProjectType = extractString(normalized, ['專案類型', 'project type']);
+        let themeCategory = [rawTag, rawProjectType].filter(Boolean).join(' - ') || '無主題類別';
+
+        // IP 標籤偵測 (僅適用 IG/FB/YT，專案包含"推廣行銷"且格式包含"影片")
+        let hasIP = false;
+        if (['IG', 'FB', 'YouTube'].includes(platform)) {
+            if (rawProjectType.includes('推廣行銷') && format.includes('影片')) {
+                hasIP = true;
+            }
+        }
+
+        // ==========================================
+        // 5. 輸出標準化物件 (包含 AdvancedMetrics)
+        // ==========================================
         return {
             date, 
             platform: String(platform), 
-            type: String(normalized['專案類型'] || normalized['格式'] || ''),
-            title: String(normalized['活動主題'] || normalized['串文名稱'] || '無標題'),
-            views, 
+            themeCategory,  // ✅ 新增：合併後的主題類別
+            format,         // ✅ 新增：格式
+            title,
+            reach,          // ✅ 拆分：觸及數
+            views,          // ✅ 拆分：觀看數
             likes, 
             shares, 
-            saves, 
-            interactions, 
+            comments,       // 新增：留言數
+            interactions,   // ✅ YT已自動加總
+            engagementRate, // ✅ YT已依訂閱數計算
+            followers,      
             nonFansPercent, 
-            hasIP, 
-            retentionRate: 0, 
+            hasIP,          // ✅ 已更新判定邏輯
+            
+            // 📦 進階特定數據獨立存放區
+            advancedMetrics: {
+                ytAvgViewDurationPercent: extractMetric(normalized, ['平均觀看時間比例']),
+                ytRetentionPercent: extractMetric(normalized, ['續看觀眾比率', '續看']),
+                ytUniqueViewers90d: extractMetric(normalized, ['非重複觀眾人數']),
+                igRetentionRate: extractMetric(normalized, ['留存率'])
+            },
+            
             raw: row
         };
     }
