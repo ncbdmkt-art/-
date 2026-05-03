@@ -52,6 +52,32 @@
         hr { margin:12px 0; border-color:#e2ecd9; }
         .prediction-calendar { margin-top: 20px; border-top: 2px dashed #cfe2c2; padding-top: 16px; }
         @media (max-width: 1000px) { .dashboard-layout { flex-direction: column; } .strategy-brain { width: 100%; } }
+        /* 新增：左側顧問區聯動動畫 */
+        @keyframes slideDownFade {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .advice-highlight {
+            background: #fffdf5;
+            border-left: 4px solid #f4b942;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            animation: slideDownFade 0.4s ease-out;
+            box-shadow: var(--shadow-sm);
+        }
+        /* Sprout Icon 統一視覺標籤 */
+        .sprout-badge {
+            background: #eef5ea;
+            color: #7cb342;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 <body>
