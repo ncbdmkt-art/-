@@ -384,12 +384,15 @@
                     </div>
                 </div>
                 
-                <!-- 👇 文字版互動指南 + 策略調整線圖例 -->
+                <!-- 👇 觸及趨勢圖：下拉選單 + 策略調整線圖例 -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; margin-bottom:12px; padding:0 4px; flex-wrap:wrap; gap:8px;">
                     <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; letter-spacing:0.5px;">
-                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊「圖表內部」可瞬移橘線
+                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊 📍 可調整橘線
+                    <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600;">
+                        <label for="interventionSelect1" style="cursor:pointer;">📍 選擇策略調整點：</label>
+                        <select id="interventionSelect1" style="padding:4px 12px; border-radius:16px; border:1px solid var(--border-light); background:#fff; color:var(--primary-text); font-weight:bold; cursor:pointer; outline:none; box-shadow:var(--shadow-sm);"></select>
                     </div>
-                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接點擊圖表上的特定月份，來對比策略調整前後的成效差異！">
+                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】點擊左方選單切換月份，圖表上的橘線會自動瞬移，方便對比策略調整前後的成效差異！">
                         <span style="display:inline-block; width:16px; border-top:2px dashed #ffa500; margin-right:4px; vertical-align:middle;"></span>
                         <span style="font-size:0.75rem; color:#e65100; text-decoration:underline dotted; font-weight:600; cursor:pointer;">策略調整線</span>
                     </div>
@@ -437,12 +440,15 @@
                     </div>
                 </div>
                 
-                <!-- 👇 文字版互動指南 + 策略調整線圖例 -->
+　　　　　　　　　<!-- 👇 互動率趨勢圖：下拉選單 + 策略調整線圖例 -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; margin-bottom:12px; padding:0 4px; flex-wrap:wrap; gap:8px;">
-                    <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; letter-spacing:0.5px;">
-                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊「圖表內部」可瞬移橘線
+                     <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; letter-spacing:0.5px;">
+                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊 📍 可調整橘線
+                    <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600;">
+                        <label for="interventionSelect2" style="cursor:pointer;">📍 選擇策略調整點：</label>
+                        <select id="interventionSelect2" style="padding:4px 12px; border-radius:16px; border:1px solid var(--border-light); background:#fff; color:var(--primary-text); font-weight:bold; cursor:pointer; outline:none; box-shadow:var(--shadow-sm);"></select>
                     </div>
-                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接點擊圖表上的特定月份，來對比策略調整前後的成效差異！">
+                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】點擊左方選單切換月份，圖表上的橘線會自動瞬移，方便對比策略調整前後的成效差異！">
                         <span style="display:inline-block; width:16px; border-top:2px dashed #ffa500; margin-right:4px; vertical-align:middle;"></span>
                         <span style="font-size:0.75rem; color:#e65100; text-decoration:underline dotted; font-weight:600; cursor:pointer;">策略調整線</span>
                     </div>
@@ -783,7 +789,7 @@
         document.getElementById('coreMetrics').innerHTML = `<div class="dual-metric">${htmlOutput}</div>`;
     }
 
-    // 建立一個全域變數來記住橘線被拖曳到了哪裡（跨圖表同步用）
+// 建立全域變數來記住橘線位置
     window.sharedInterventionIndex = undefined;
 
     function renderReachChart() {
@@ -821,36 +827,44 @@
             datasets.push({ label: '理想斜率', data: idealLine, borderColor: '#2c6e2c', borderWidth: 2, borderDash: [6,6], fill: false, pointRadius: 0, order: 3 });
         }
         
-        // --- 拖曳橘線的邏輯引擎 ---
+        // 預設將策略線放在：有資料的最後一個月的前 2 個月 (模擬上個季度的感覺)
         if (typeof window.sharedInterventionIndex === 'undefined') {
             window.sharedInterventionIndex = labels.length >= 3 ? labels.length - 3 : Math.max(0, labels.length - 1);
-        } else if (window.sharedInterventionIndex >= labels.length) {
-            window.sharedInterventionIndex = Math.max(0, labels.length - 1);
         }
 
-        const annotationDragLogic = {
-            enter(ctx) { ctx.chart.canvas.style.cursor = 'ew-resize'; },
-            leave(ctx) { ctx.chart.canvas.style.cursor = 'default'; },
-            drag(ctx, event) {
-                const xAxis = ctx.chart.scales.x;
-                const value = xAxis.getValueForPixel(event.x);
-                if (value !== undefined) {
-                    const newIndex = Math.max(0, Math.min(labels.length - 1, Math.round(value)));
-                    window.sharedInterventionIndex = newIndex;
-                    
-                    ctx.element.xMin = newIndex;
-                    ctx.element.xMax = newIndex;
-                    ctx.chart.update('none'); // 無縫更新
+        // --- 🎯 終極防呆：自動生成與綁定下拉選單 ---
+        const select1 = document.getElementById('interventionSelect1');
+        const select2 = document.getElementById('interventionSelect2');
+        if (select1 && select1.options.length === 0) {
+            labels.forEach((lbl, idx) => {
+                select1.add(new Option(lbl, idx));
+                if (select2) select2.add(new Option(lbl, idx));
+            });
+            select1.value = window.sharedInterventionIndex;
+            if (select2) select2.value = window.sharedInterventionIndex;
 
-                    // 魔法連動：拖曳這張圖的橘線，下面那張圖的橘線也會跟著跑！
-                    if (ctx.chart.canvas.id === 'reachTrendChart' && typeof engagementChart !== 'undefined') {
-                        engagementChart.options.plugins.annotation.annotations.event1.xMin = newIndex;
-                        engagementChart.options.plugins.annotation.annotations.event1.xMax = newIndex;
-                        engagementChart.update('none');
-                    }
+            // 選單切換時的連動魔法
+            const syncCharts = (e) => {
+                const newIndex = parseInt(e.target.value);
+                window.sharedInterventionIndex = newIndex;
+                select1.value = newIndex;
+                if(select2) select2.value = newIndex;
+
+                if(typeof reachChart !== 'undefined' && reachChart.options.plugins.annotation.annotations.event1) {
+                    reachChart.options.plugins.annotation.annotations.event1.xMin = newIndex;
+                    reachChart.options.plugins.annotation.annotations.event1.xMax = newIndex;
+                    reachChart.update();
                 }
-            }
-        };
+                if(typeof engagementChart !== 'undefined' && engagementChart.options.plugins.annotation.annotations.event1) {
+                    engagementChart.options.plugins.annotation.annotations.event1.xMin = newIndex;
+                    engagementChart.options.plugins.annotation.annotations.event1.xMax = newIndex;
+                    engagementChart.update();
+                }
+            };
+            select1.addEventListener('change', syncCharts);
+            if(select2) select2.addEventListener('change', syncCharts);
+        }
+        // ------------------------------------------
 
         const annotation = { 
             annotations: {
@@ -861,15 +875,30 @@
                     borderColor: '#ffa500', 
                     borderWidth: 2.5, 
                     borderDash: [6,6], 
-                    label: { content: '↕ 拖拉我', enabled: true, position: 'top', backgroundColor: 'rgba(255,165,0,0.85)', font: {size: 10} },
-                    ...annotationDragLogic
+                    label: { content: '📍 策略調整', enabled: true, position: 'top', backgroundColor: 'rgba(255,165,0,0.85)', font: {size: 10} }
                 } 
             } 
         };
         
         if(reachChart) reachChart.destroy();
         const ctx = document.getElementById('reachTrendChart').getContext('2d');
-        reachChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString() || 'N/A'}`, afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實趨勢'; return null; } } }, annotation } } });
+        reachChart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    tooltip: { 
+                        callbacks: { 
+                            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString() || 'N/A'}`, 
+                            afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實體質'; return null; } 
+                        } 
+                    }, 
+                    annotation 
+                } 
+            } 
+        });
     }
     
     function renderEngagementChart() {
@@ -895,31 +924,6 @@
         });
         const targetVal = 3.5;
         datasets.push({ label: `目標閾值 ${targetVal}%`, data: Array(labels.length).fill(targetVal), borderColor: '#ffa000', borderWidth: 2, borderDash: [5,5], fill: false, pointRadius: 0, order: 3 });
-        
-        // --- 拖曳橘線的邏輯引擎 (互動圖專用) ---
-        const annotationDragLogic = {
-            enter(ctx) { ctx.chart.canvas.style.cursor = 'ew-resize'; },
-            leave(ctx) { ctx.chart.canvas.style.cursor = 'default'; },
-            drag(ctx, event) {
-                const xAxis = ctx.chart.scales.x;
-                const value = xAxis.getValueForPixel(event.x);
-                if (value !== undefined) {
-                    const newIndex = Math.max(0, Math.min(labels.length - 1, Math.round(value)));
-                    window.sharedInterventionIndex = newIndex;
-                    
-                    ctx.element.xMin = newIndex;
-                    ctx.element.xMax = newIndex;
-                    ctx.chart.update('none');
-
-                    // 魔法連動：拖曳這張圖的橘線，上面那張圖的橘線也會跟著跑！
-                    if (ctx.chart.canvas.id === 'engagementTrendChart' && typeof reachChart !== 'undefined') {
-                        reachChart.options.plugins.annotation.annotations.event1.xMin = newIndex;
-                        reachChart.options.plugins.annotation.annotations.event1.xMax = newIndex;
-                        reachChart.update('none');
-                    }
-                }
-            }
-        };
 
         const annotation = { 
             annotations: {
@@ -930,15 +934,30 @@
                     borderColor: '#ffa500', 
                     borderWidth: 2.5, 
                     borderDash: [6,6], 
-                    label: { content: '↕ 拖拉我', enabled: true, position: 'top', backgroundColor: 'rgba(255,165,0,0.85)', font: {size: 10} },
-                    ...annotationDragLogic
+                    label: { content: '📍 策略調整', enabled: true, position: 'top', backgroundColor: 'rgba(255,165,0,0.85)', font: {size: 10} }
                 } 
             } 
         };
         
         if(engagementChart) engagementChart.destroy();
         const ctx = document.getElementById('engagementTrendChart').getContext('2d');
-        engagementChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2)}%`, afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實趨勢'; return null; } } }, annotation } } });
+        engagementChart = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels, datasets }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    tooltip: { 
+                        callbacks: { 
+                            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2)}%`, 
+                            afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實體質'; return null; } 
+                        } 
+                    }, 
+                    annotation 
+                } 
+            } 
+        });
     }
     
     function renderEngagementChart() {
