@@ -824,6 +824,51 @@ function drawIPStackMini(){
             }
         });
     }
+    // 🌟 補上遺失的「發布密度快照」函式
+    function drawDensitySpark() {
+        const canvas = document.getElementById('densitySpark');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        // 抓取資料庫中「最新」的一篇貼文日期，往前推算 30 天
+        let latestDateStr = currentPosts.length ? currentPosts[0].date : new Date().toISOString().slice(0,10);
+        const latestDate = new Date(latestDateStr);
+        const last30Days = [];
+        
+        for (let i = 29; i >= 0; i--) {
+            let d = new Date(latestDate);
+            d.setDate(latestDate.getDate() - i);
+            last30Days.push(d.toISOString().slice(0, 10));
+        }
+        
+        // 對應每天的貼文數
+        const densityData = last30Days.map(date => postCountObj[date] || 0);
+        
+        if (window.densityChart) window.densityChart.destroy();
+        window.densityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: last30Days.map(d => d.slice(5)), // 顯示 MM-DD
+                datasets: [{
+                    label: '每日發文數',
+                    data: densityData,
+                    // 發文越多，顏色越深
+                    backgroundColor: densityData.map(count => count >= 3 ? '#7cb342' : (count >= 1 ? '#c0dda8' : '#eef5ea')),
+                    borderWidth: 0,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                scales: {
+                    x: { display: false }, // 隱藏Ｘ軸讓畫面像迷你快照 (Sparkline)
+                    y: { display: false, beginAtZero: true }
+                }
+            }
+        });
+    }
 
 // 左側大腦建構
     function buildLeftBrain() {
