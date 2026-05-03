@@ -277,15 +277,20 @@
                         <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
                     </div>
                 </div>
-                <!-- 👇 升級版的隱藏判讀指引框 -->
+                <!-- 👇 升級版的隱藏判讀指引框 (加入 MA 與單月差異說明) -->
                 <div id="idealSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%; border-left:4px solid var(--primary);">
                     <strong>💡 一秒判讀法：我們年底能達標嗎？</strong><br>
                     <div style="margin-top:6px; line-height:1.6;">
-                        ✔️ <strong>實線 > 虛線：</strong> <span style="color:#2e7d32; font-weight:600;">進度超前！</span>維持現有發文頻率即可達標。<br>
-                        ❌ <strong>實線 < 虛線：</strong> <span style="color:#c62828; font-weight:600;">嚴重落後！</span>純靠自然流量已死，必須立刻「投廣告買流量」或「跨界合作」。
+                        ✔️ <strong>MA實線 &gt; 虛線：</strong> <span style="color:#2e7d32; font-weight:600;">進度超前！</span>維持現有發文頻率即可達標。<br>
+                        ❌ <strong>MA實線 &lt; 虛線：</strong> <span style="color:#c62828; font-weight:600;">嚴重落後！</span>純靠自然流量已死，必須立刻「投廣告買流量」或「跨界合作」。
                     </div>
                     <hr style="border:0; border-top:1px dashed #c5e0b4; margin:8px 0;">
-                    <span style="color:#666; font-size:0.75rem;">📝 元素說明：<strong>➖ 粗實線</strong> = 3個月移動平均線(看真實趨勢) ｜ <strong>-- 虛線</strong> = 系統推算的達標及格線</span>
+                    <div style="color:#666; font-size:0.75rem; line-height:1.5;">
+                        <strong>📝 元素說明與 MA 判讀：</strong><br>
+                        <strong>─ 細實線 (單月觸及)：</strong> 易受單篇爆文影響，用來看「短期的爆發力或異常」。<br>
+                        <strong>━ 粗實線 (3期MA)：</strong> 平滑掉極端波動，用來看「長期的真實體質與趨勢」。<br>
+                        <strong>-- 虛線 (理想斜率)：</strong> 系統推算的達標及格線。
+                    </div>
                 </div>
                 <canvas id="reachTrendChart" height="160"></canvas>
             </div>
@@ -672,7 +677,7 @@
         
         if(reachChart) reachChart.destroy();
         const ctx = document.getElementById('reachTrendChart').getContext('2d');
-        reachChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString() || 'N/A'}` } }, annotation } } });
+        reachChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString() || 'N/A'}`, afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實趨勢'; return null; } } }, annotation } } });
     }
     
     function renderEngagementChart() {
@@ -704,7 +709,7 @@
         
         if(engagementChart) engagementChart.destroy();
         const ctx = document.getElementById('engagementTrendChart').getContext('2d');
-        engagementChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2)}%` } }, annotation } } });
+       engagementChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2)}%`, afterLabel: (ctx) => { if (ctx.dataset.label.includes('MA')) return '💡 3期移動平均：平滑單月極端波動，顯示長期真實趨勢'; return null; } } }, annotation } } });
     }
 
     function findChampions(allPosts) {
