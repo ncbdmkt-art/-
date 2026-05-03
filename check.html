@@ -78,6 +78,35 @@
             align-items: center;
             gap: 4px;
         }
+        /* --- 浮凸立體 ⓘ 按鈕 (戰略診斷專用) --- */
+        .info-btn-embossed {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #eef5ea;
+            color: #5a7452; /* 墨綠色 */
+            font-size: 0.95rem;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 10px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1), -2px -2px 5px rgba(255, 255, 255, 1);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .info-btn-embossed:hover {
+            color: #7cb342; /* 亮綠色 */
+            transform: translateY(-1px);
+        }
+        /* 點擊後的內凹狀態 */
+        .info-btn-embossed.pressed {
+            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.15), inset -2px -2px 4px rgba(255, 255, 255, 0.8);
+            color: #7cb342;
+            transform: translateY(1px);
+        }
     </style>
 </head>
 <body>
