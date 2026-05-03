@@ -468,42 +468,90 @@
         const daily=new Map();
         currentPosts.forEach(p=>{ let d=p.date; if(!daily.has(d)) daily.set(d,{ip:0,nonip:0}); let val=daily.get(d); if(p.hasIP) val.ip+=p.interactions; else val.nonip+=p.interactions; });
         const sorted=Array.from(daily.keys()).sort();
-        const ipData=sorted.map(d=>daily.get(d).ip), nonipData=sorted.map(d=>daily.get(d).nonip);
+        const ipData=sorted.map(d=>daily.get(d).ip);
+        
+        // 🌟 L9-1 不確定性的視覺提示：建立區間帶 (上下浮動 20%)
+        const avgIP = ipData.reduce((a,b)=>a+b,0) / (ipData.length || 1) || 50;
+        const targetUpperBand = ipData.map(() => avgIP * 1.2);
+        const targetLowerBand = ipData.map(() => avgIP * 0.8);
+        
+        // 判定實際數據是否跌出區間外 (觸發 L1-1 紅色脈衝)
+        const isFailing = ipData.some((val, i) => val < targetLowerBand[i]);
+        const chartCard = document.getElementById('ipStackMini').closest('.quad-card');
+        if (isFailing) { chartCard.classList.add('critical-alert'); } 
+        else { chartCard.classList.remove('critical-alert'); }
+
         const ctx=document.getElementById('ipStackMini')?.getContext('2d');
         if(!ctx) return;
         if(window.stackMini) window.stackMini.destroy();
-        window.stackMini = new Chart(ctx, { type:'line', data:{ labels:sorted, datasets:[
-            { label:'IP互動', data:ipData, backgroundColor:'#a5d6a5', borderColor:'#7cb342', fill:true },
-            { label:'無IP互動', data:nonipData, backgroundColor:'#e0f0d8', borderColor:'#9bb88b', fill:true }
-        ]}, options:{ responsive:true, maintainAspectRatio:true } });
-    }
-    function drawBubbleMini(){
-        const canvas=document.getElementById('bubbleMini');
-        if(!canvas) return;
-        const ctx=canvas.getContext('2d');
-        const w=canvas.clientWidth, h=canvas.clientHeight;
-        canvas.width=w; canvas.height=h;
-        ctx.clearRect(0,0,w,h);
-        if(!currentPackages.length) return;
-        const maxReach=Math.max(...currentPackages.map(p=>p.reach),1), maxRate=Math.max(...currentPackages.map(p=>p.interactionRate),0.1);
-        const minReach=Math.min(...currentPackages.map(p=>p.reach),0), minRate=Math.min(...currentPackages.map(p=>p.interactionRate),0);
-        const pad=40;
-        const x=r=>pad+(r-minReach)/(maxReach-minReach||1)*(w-2*pad);
-        const y=rt=>h-pad-(rt-minRate)/(maxRate-minRate||1)*(h-2*pad);
-        currentPackages.forEach(p=>{
-            let rad=Math.max(5, 20/(p.daysLeft+1)+5);
-            ctx.beginPath();
-            ctx.fillStyle = (p.reach<maxReach*0.4 && p.interactionRate<maxRate*0.4)? '#d9534f' : '#7cb342';
-            ctx.arc(x(p.reach), y(p.interactionRate), rad, 0, 2*Math.PI);
-            ctx.fill();
+        window.stackMini = new Chart(ctx, { 
+            type:'line', 
+            data:{ 
+                labels:sorted, 
+                datasets:[
+                    { label:'🌱 芽bao實際互動', data:ipData, backgroundColor:'rgba(124,179,66,0.6)', borderColor:'#7cb342', fill:false, tension:0.3, z:10 },
+                    // 利用 Chart.js fill 特性畫出區間帶
+                    { label:'理想高標', data:targetUpperBand, borderColor:'transparent', pointRadius:0, fill:false },
+                    { label:'理想區間帶', data:targetLowerBand, borderColor:'rgba(244,185,66,0.5)', backgroundColor:'rgba(244,185,66,0.15)', pointRadius:0, fill:'-1' }
+                ]
+            }, 
+            options:{ responsive:true, maintainAspectRatio:true } 
         });
     }
-    function drawDensitySpark(){
-        const canvas=document.getElementById('densitySpark');
-        if(!canvas) return;
+
+    function drawBubbleMini(){
+        const canvas=document.getElementById('bubbleMini');
+        if(!canvas || !currentPackages.length) return;
         const ctx=canvas.getContext('2d');
-        canvas.width=canvas.clientWidth; canvas.height=100;
-        ctx.fillStyle='#e0f0d8'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        
+        const maxReach=Math.max(...currentPackages.map(p=>p.reach),1);
+        const maxRate=Math.max(...currentPackages.map(p=>p.interactionRate),0.1);
+
+        const bubbleData = currentPackages.map(p => ({
+            x: p.reach,
+            y: p.interactionRate,
+            r: Math.max(5, 20/(p.daysLeft+1)+5),
+            packageData: p // 把原始資料塞進去供點擊時讀取
+        }));
+
+        if(window.bubbleChart) window.bubbleChart.destroy();
+        window.bubbleChart = new Chart(ctx, {
+            type: 'bubble',
+            data: {
+                datasets: [{
+                    label: '包裹效能',
+                    data: bubbleData,
+                    backgroundColor: bubbleData.map(d => (d.x < maxReach*0.4 && d.y < maxRate*0.4) ? 'rgba(217,83,79,0.7)' : 'rgba(124,179,66,0.7)')
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: true,
+                plugins: {
+                    tooltip: { callbacks: { label: (context) => context.raw.packageData.name } }
+                },
+                // 🌟 L10-3 左右聯動校準
+                onClick: (event, elements) => {
+                    if(elements.length > 0) {
+                        const index = elements[0].index;
+                        const pkg = bubbleData[index].packageData;
+                        const isUnderperforming = (pkg.reach < maxReach*0.4 && pkg.interactionRate < maxRate*0.4);
+                        
+                        const adviceBox = document.getElementById('dynamicAdviceBox');
+                        adviceBox.innerHTML = `
+                            <div class="advice-highlight">
+                                <strong>🎯 針對包裹【${pkg.name}】的即時診斷：</strong><br>
+                                互動率 ${pkg.interactionRate.toFixed(1)}% / 距結束 ${pkg.daysLeft} 天<br>
+                                <span style="color:${isUnderperforming ? '#d9534f' : '#7cb342'}; font-weight:600; margin-top:4px; display:inline-block;">
+                                    ${isUnderperforming 
+                                        ? '🚨 表現落後：建議立刻更換首圖，或加入「🌱 芽bao」元素拉升親和力。' 
+                                        : '✅ 表現優異：此包裹已具備擴散潛力，建議直接加碼廣告預算！'}
+                                </span>
+                            </div>
+                        `;
+                    }
+                }
+            }
+        });
     }
 
 // 左側大腦建構
