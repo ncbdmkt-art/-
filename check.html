@@ -107,6 +107,41 @@
             color: #7cb342;
             transform: translateY(1px);
         }
+        /* --- 💡 戰術指南彈出視窗 Modal 樣式 --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px);
+            z-index: 9999; display: flex; justify-content: center; align-items: center;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 850px; max-height: 85vh;
+            border-radius: 24px; padding: 32px 40px; position: relative;
+            overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        }
+        .modal-close-btn {
+            position: absolute; top: 20px; right: 24px;
+            background: #f5f9f0; border: none; width: 36px; height: 36px;
+            border-radius: 50%; font-size: 1.5rem; color: #5a7452; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .modal-close-btn:hover { background: #fae6e1; color: #d9534f; transform: scale(1.1); }
+        
+        .modal-tactic-block {
+            background: #f8faf5; border-left: 5px solid #7cb342;
+            padding: 20px; margin-bottom: 24px; border-radius: 12px;
+        }
+        .modal-tactic-block h4 { color: #2c3e2f; margin-bottom: 12px; font-size: 1.15rem; }
+        .modal-tactic-block p { font-size: 0.95rem; line-height: 1.7; margin-bottom: 10px; color: #444; }
+        .modal-action-box {
+            background: white; border: 1px solid #cfe2c2; border-radius: 12px;
+            padding: 16px; margin-top: 16px; font-size: 0.9rem; line-height: 1.7;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .modal-action-box ul { margin-top: 10px; padding-left: 24px; color: #444; }
+        .modal-action-box li { margin-bottom: 8px; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -127,6 +162,19 @@
                 <option value="YouTube">YouTube</option>
                 <option value="Threads">Threads</option>
             </select>
+            <div class="channel-selector">
+            <label>📢 渠道：</label>
+            <select id="globalChannelSelect">
+                <option value="all">全部渠道</option>
+                <option value="IG">Instagram</option>
+                <option value="FB">Facebook</option>
+                <option value="LINE">LINE</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Threads">Threads</option>
+            </select>
+            <!-- 🌟 新增的戰術指南按鈕 -->
+            <button id="tacticGuideBtn" class="action-link" style="margin-left: 16px; background: #fffdf5; border: 1px solid #f4b942; color: #d35400; padding: 6px 16px; font-weight: 700;">💡 戰術操作指南</button>
+        </div>
         </div>
     </div>
     <div class="dashboard-layout" id="mainDashboard">
@@ -134,7 +182,63 @@
         <div class="evidence-panel" id="rightPanel"></div>
     </div>
 </div>
+<!-- 🌟 大學生人設演算法漏斗戰術 Modal 彈出視窗 -->
+<div id="tacticModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <button id="closeTacticModal" class="modal-close-btn">&times;</button>
+        
+        <h2 style="color: #2c3e2f; margin-bottom: 16px; font-size: 1.5rem;">🎓 如何用「大學生人設」衝爆 5 大指標？</h2>
+        <p style="font-size: 1rem; line-height: 1.6; margin-bottom: 24px; color: #555;">
+            你要打造「溫暖、有大學生活人感」的帳號，這與你想要衝高的 5 個數據（觀看、按讚、互動率、非粉比例、續看率）完全是相輔相成的。你可以將芽bao的「大學生人設」套入以下的 <strong>演算法漏斗戰術</strong>：
+        </p>
 
+        <!-- 戰術一 -->
+        <div class="modal-tactic-block">
+            <h4>戰術一：守住續看率 ➡️ 展現「大學生不完美的痛點」</h4>
+            <p><strong>📉 對應儀表板區塊：</strong> 「最好 vs 最差三篇對比」卡片</p>
+            <p><strong>⚔️ 戰術核心：</strong> 大學生的人感來自於「不完美」。不要讓芽bao一直正能量，讓他經歷早八起不來、期中考熬夜、月底吃泡麵的崩潰。在前 3 秒就展現這種極具共鳴的情境，觀眾會因為「這根本是我」而繼續看下去。</p>
+            <div class="modal-action-box">
+                <strong style="color:#7cb342;">🛠️ 如何操作與判讀：</strong><br>
+                每天打開後台，直接滑到這張卡片看「⚠️ 最差三篇」。如果裡面出現了芽寶的推廣影片，點開它去檢查前 3 秒！
+                <ul>
+                    <li><strong>🔍 診斷：</strong> 影片開頭是不是太像直白廣告？芽寶是不是一開始就正能量滿滿地在推銷？</li>
+                    <li><strong>⚡ 行動：</strong> 下次企劃推廣文時，強制規定首圖或前 3 秒的文案必須是「早八起不來」、「忘記帶課本」的崩潰情境，用痛點把粉絲的注意力「釘」在影片上，將它從最差名單中移出。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 戰術二 -->
+        <div class="modal-tactic-block">
+            <h4>戰術二：衝高按讚與互動率 ➡️ 建立「朋友般的陪伴感（溫暖感）」</h4>
+            <p><strong>⚖️ 對應儀表板區塊：</strong> 「品牌平衡計 (溫暖 vs 專業)」圓盤</p>
+            <p><strong>⚔️ 戰術核心：</strong> 將冰冷的推廣資訊，轉化為「朋友間的分享」。例如：不是「推薦你買這個文具」，而是芽bao說「救命，期末考靠這個活下來了」。留言區的互動就會從「好實用」變成「@同學 這是你吧😂」，大幅拉抬互動率。</p>
+            <div class="modal-action-box">
+                <strong style="color:#7cb342;">🛠️ 如何操作與判讀：</strong><br>
+                這個圓盤就是你的「陪伴感探測器」。你的目標是讓水滴指針穩定指向右邊的「🔥 偏向溫暖親切」橘色區域。
+                <ul>
+                    <li><strong>🔍 診斷：</strong> 當你發現指針開始往左邊的「👔 專業乾貨」偏移，代表團隊最近的推廣文寫得太像「官方客服」了，冰冷的語氣讓粉絲失去了留言 @同學 的動力。</li>
+                    <li><strong>⚡ 行動：</strong> 立刻介入調整文案 Tone 調。把「這款產品的特點是...」改成芽寶的口吻：「救命，我期末考差點死掉，還好有它...」，用朋友的語氣把指針拉回溫暖區。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 戰術三 -->
+        <div class="modal-tactic-block">
+            <h4>戰術三：突破非粉比例與觀看數 ➡️ 創造「社交貨幣（分享與收藏）」</h4>
+            <p><strong>✨ 對應儀表板區塊：</strong> 「IP效能堆疊圖」 & 💡「顧問即時建議」</p>
+            <p><strong>⚔️ 戰術核心：</strong> 演算法要推給非粉絲，最看重的是「分享數」。芽bao的大學生活日常如果足夠有趣、夠有梗，粉絲就會將貼文轉發到限時動態或傳給同學。這種「破圈」的傳播，能瞬間拉高非粉絲比例。</p>
+            <div class="modal-action-box">
+                <strong style="color:#7cb342;">🛠️ 如何操作與判讀：</strong><br>
+                看堆疊圖的綠線，如果某天它突然「往上暴衝穿破高標區間」，而且💡顧問建議區顯示的「🌱 芽bao溢價」飆高到 +50% 以上。
+                <ul>
+                    <li><strong>🔍 診斷：</strong> 大成功！這代表那篇「有梗的大學日常」成為了社交貨幣，粉絲瘋狂轉發到 IG 限動，演算法將它推給了大量非粉。</li>
+                    <li><strong>⚡ 行動：</strong> 馬上覆盤這篇爆款的「梗」是什麼（例如是關於學生餐廳很難吃、還是教授很愛當人），並在下週的排程中「複製這個梗的模板」來製作下一檔推廣活動。</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
 <script>
     // ========== 通用函數 ==========
     function getPostsByChannel(channel) {
@@ -947,6 +1051,36 @@
 
     document.getElementById('globalChannelSelect').addEventListener('change', main);
     main();
+    // 🌟 綁定「戰術操作指南」彈出視窗的開關事件
+    document.addEventListener('DOMContentLoaded', () => {
+        const tacticBtn = document.getElementById('tacticGuideBtn');
+        const tacticModal = document.getElementById('tacticModal');
+        const closeBtn = document.getElementById('closeTacticModal');
+
+        if (tacticBtn && tacticModal && closeBtn) {
+            // 打開視窗
+            tacticBtn.addEventListener('click', () => {
+                tacticModal.style.display = 'flex';
+                // 鎖定背景滾動
+                document.body.style.overflow = 'hidden';
+            });
+            
+            // 點擊 X 關閉視窗
+            closeBtn.addEventListener('click', () => {
+                tacticModal.style.display = 'none';
+                // 恢復背景滾動
+                document.body.style.overflow = 'auto';
+            });
+            
+            // 點擊半透明背景也可關閉視窗
+            tacticModal.addEventListener('click', (e) => {
+                if (e.target === tacticModal) {
+                    tacticModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        }
+    });
 </script>
 </body>
 </html>
