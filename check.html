@@ -688,7 +688,7 @@
         
         const bestHasIP = currentBestThree.filter(p=>p.hasIP).length;
         const worstHasIP = currentWorstThree.filter(p=>p.hasIP).length;
-        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽寶」佔比較高，強化此 IP 顯著有效。`;
+        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽bao」佔比較高，強化此 IP 顯著有效。`;
         
         let warmth = 50 + (currentIPInteract - currentNonInteract)*2;
         warmth = Math.min(95, Math.max(5, warmth));
@@ -732,7 +732,7 @@
             
             <div class="card"><div class="card-title">⚖️ 品牌平衡計 (溫暖 vs 專業)</div>
                 <div class="gauge-half"><canvas id="brandGauge" width="160" height="80"></canvas></div>
-                <div class="small-note">🌱 芽寶貼文帶動溫暖感，建議維持比例</div>
+                <div class="small-note">🌱 芽bao貼文帶動溫暖感，建議維持比例</div>
             </div>
             
             <div class="card"><div class="card-title">🎚️ 策略模擬器</div>
@@ -748,9 +748,9 @@
                     <div style="margin-bottom:12px;">${compareAdvice}</div>
                 </div>
                 <hr>
-                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽寶溢價</span><strong>+${currentPremium}%</strong></div>
-                <div class="flex-between" style="margin-bottom:6px;"><span>有芽寶互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
-                <div class="flex-between" style="margin-bottom:12px;"><span>無芽寶互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽bao溢價</span><strong>+${currentPremium}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>有芽bao互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:12px;"><span>無芽bao互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
                 <button class="action-link" onclick="location.href='audience.html'">👥 前往客群分析</button>
             </div>
         `;
