@@ -686,27 +686,49 @@
         });
     }
 
-// ========== 🌟 左側大腦建構 (動態 KPI 與文案) ==========
+// 左側大腦建構
     function buildLeftBrain() {
-        const kpiMap = { 'all': 2450, 'IG': 1500, 'FB': 500, 'LINE': 300, 'YouTube': 20, 'Threads': 100 };
-        const channelNameMap = { 'all': '全渠道', 'IG': 'Instagram', 'FB': 'Facebook', 'LINE': 'LINE', 'YouTube': 'YouTube', 'Threads': 'Threads' };
+        const channelSelect = document.getElementById('globalChannelSelect');
+        const selectedChannel = channelSelect ? channelSelect.value : 'all';
         
-        const currentKPI = kpiMap[currentSelectedChannel] || 1500;
-        const currentChannelName = channelNameMap[currentSelectedChannel] || currentSelectedChannel;
+        const kpiMap = {
+            'all': 2450,
+            'IG': 1500,
+            'FB': 500,
+            'LINE': 300,
+            'YouTube': 20,
+            'Threads': 100
+        };
+        const channelNameMap = {
+            'all': '全渠道',
+            'IG': 'Instagram',
+            'FB': 'Facebook',
+            'LINE': 'LINE',
+            'YouTube': 'YouTube',
+            'Threads': 'Threads'
+        };
+        
+        const currentKPI = kpiMap[selectedChannel] || 1500;
+        const currentChannelName = channelNameMap[selectedChannel] || selectedChannel;
+
+        // 🌟 新增：針對「全渠道」與「單一渠道」，客製化機會成本的目標字眼
+        const targetText = selectedChannel === 'all' 
+            ? `全渠道共 ${currentKPI.toLocaleString()}` 
+            : `${currentKPI.toLocaleString()}`;
 
         // 🎯 依據選中渠道動態生成規則文案
         let rulesHtml = '';
-        if (currentSelectedChannel === 'all') {
+        if (selectedChannel === 'all') {
             rulesHtml = `✔️ <strong>全渠道概覽門檻：</strong><br>- IG/FB：觀看 &ge; 100、點讚 &ge; 15<br>- Threads：觀看 &ge; 100、點讚 &ge; 5<br>- LINE：投票數 &ge; 20 且 點讚 &ge; 5<br>- YouTube：觀看 &ge; 200、點讚 &ge; 5`;
-        } else if (currentSelectedChannel === 'IG') {
+        } else if (selectedChannel === 'IG') {
             rulesHtml = `✔️ <strong>IG 達標門檻：</strong><br>- 一般貼文：觀看 &ge; 100、點讚 &ge; 15<br>- 推廣行銷 (圖文)：觀看 &ge; 1500、點讚 &ge; 15、非粉比例 &ge; 15%、互動 &ge; 20<br>- 推廣行銷 (影片)：觀看 &ge; 1500、點讚 &ge; 20、非粉比例 &ge; 15%、互動 &ge; 20、續看率 &ge; 10%`;
-        } else if (currentSelectedChannel === 'FB') {
+        } else if (selectedChannel === 'FB') {
             rulesHtml = `✔️ <strong>FB 達標門檻：</strong><br>- 貼文觀看 &ge; 100、點讚 &ge; 15`;
-        } else if (currentSelectedChannel === 'Threads') {
+        } else if (selectedChannel === 'Threads') {
             rulesHtml = `✔️ <strong>Threads 達標門檻：</strong><br>- 觀看 &ge; 100、點讚 &ge; 5<br>- 🎁 Bonus：新增追蹤 &ge; 1 即算達標`;
-        } else if (currentSelectedChannel === 'LINE') {
+        } else if (selectedChannel === 'LINE') {
             rulesHtml = `✔️ <strong>LINE 達標門檻：</strong><br>- 投票格式：投票人數 &ge; 20<br>- 圖文格式：點讚 &ge; 5`;
-        } else if (currentSelectedChannel === 'YouTube') {
+        } else if (selectedChannel === 'YouTube') {
             rulesHtml = `✔️ <strong>YouTube 達標門檻：</strong><br>- 單篇：觀看 &ge; 200、點讚 &ge; 5、續看率 &ge; 10%`;
         }
 
@@ -717,7 +739,7 @@
         
         const bestHasIP = currentBestThree.filter(p=>p.hasIP).length;
         const worstHasIP = currentWorstThree.filter(p=>p.hasIP).length;
-        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽bao」佔比較高，強化此 IP 顯著有效。`;
+        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽寶」佔比較高，強化此 IP 顯著有效。`;
         
         let warmth = 50 + (currentIPInteract - currentNonInteract)*2;
         warmth = Math.min(95, Math.max(5, warmth));
@@ -748,20 +770,23 @@
                         <div style="font-size:1.8rem; font-weight:800; line-height:1;">${currentPassRate}%</div>
                     </div>
                     <div style="text-align:right; margin-bottom:4px;">
+                        <!-- 🌟 將 KPI 後面直接加上 "粉絲" 兩個字 -->
                         <span style="background:#f4faf0; color:var(--primary-dark); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid #c5e0b4;">
-                            🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}
+                            🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}粉絲
                         </span>
                     </div>
                 </div>
                 
                 <div style="margin-bottom:12px;">整體達標率 &nbsp; ${currentPassRate>=70?'穩定':(currentPassRate>=40?'需改善':'危急')}</div>
-                <div class="advice-text">⚠️ 機會成本：若不改善，${currentKPI.toLocaleString()} 粉目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
+                
+                <!-- 🌟 套用客製化文案：若是全渠道會顯示 "全渠道共 2,450 粉絲" -->
+                <div class="advice-text">⚠️ 機會成本：若不改善，${targetText} 粉絲目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
                 <button class="action-link" style="margin-top:12px;" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
             </div>
             
             <div class="card"><div class="card-title">⚖️ 品牌平衡計 (溫暖 vs 專業)</div>
                 <div class="gauge-half"><canvas id="brandGauge" width="160" height="80"></canvas></div>
-                <div class="small-note">🌱 芽bao貼文帶動溫暖感，建議維持比例</div>
+                <div class="small-note">🌱 芽寶貼文帶動溫暖感，建議維持比例</div>
             </div>
             
             <div class="card"><div class="card-title">🎚️ 策略模擬器</div>
@@ -777,9 +802,9 @@
                     <div style="margin-bottom:12px;">${compareAdvice}</div>
                 </div>
                 <hr>
-                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽bao溢價</span><strong>+${currentPremium}%</strong></div>
-                <div class="flex-between" style="margin-bottom:6px;"><span>有芽bao互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
-                <div class="flex-between" style="margin-bottom:12px;"><span>無芽bao互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽寶溢價</span><strong>+${currentPremium}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>有芽寶互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:12px;"><span>無芽寶互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
                 <button class="action-link" onclick="location.href='audience.html'">👥 前往客群分析</button>
             </div>
         `;
@@ -799,7 +824,7 @@
             });
         }
         
-        // 綁定 Slider...
+        // 綁定 Slider 事件
         const slider = document.getElementById('strategyTargetSliderDynamic');
         const rateSpan = document.getElementById('simulateRate');
         const boostSpan = document.getElementById('simulateBoost');
