@@ -209,6 +209,7 @@
     <div class="dashboard-layout">
         <div class="left-column">
             <div class="card recap-card"><div class="card-title">📆 每月渠道現狀 Recap </div><div id="recapText">載入中...</div></div>
+            
             <div class="card">
                 <div class="card-title">
                     <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -228,7 +229,8 @@
                 </div>
                 <div id="rhythmLamps" class="rhythm-grid"></div>
             </div>
-        <div class="card">
+            
+            <div class="card">
                 <div class="card-title">🎯 戰略目標總覽</div>
                 <div class="deadline-bar">
                     <label><i class="far fa-calendar-alt"></i> 目標期限：</label>
@@ -237,6 +239,7 @@
                 </div>
                 <div id="goalsContainer"></div>
             </div>
+            
             <div class="card"><div class="card-title">✨ 亮點偵測｜月/季度最高觸及貼文</div><div id="highlightPostContainer">分析中...</div></div>
         </div>
 
@@ -265,14 +268,7 @@
             
             <div class="card"><div class="card-title">📐 內容槓桿率 (單篇平均產出 vs 上月)</div><div id="leverageContainer">計算中...</div></div>
             
-            <div class="card">
-                <div class="card-title">
-                    <div style="display:flex; align-items:center;">
-                        📈 近月觸及趨勢 + 理想斜率 
-                        <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
-                    </div>
-                </div>
-<!-- 📈 觸及趨勢圖區塊 -->
+            <!-- 📈 觸及趨勢圖區塊 -->
             <div class="card">
                 <div class="card-title">
                     <div style="display:flex; align-items:center;">
@@ -314,10 +310,6 @@
                 </div>
                 <canvas id="engagementTrendChart" height="150"></canvas>
             </div>
-                <canvas id="reachTrendChart" height="160"></canvas>
-            </div>
-            
-            <div class="card"><div class="card-title">💬 近月互動率趨勢 (目標閾值 3.5%)</div><canvas id="engagementTrendChart" height="150"></canvas><div class="info-note">🔴 低於目標閾值背景為淡紅色 | 粗線為3期移動平均</div></div>
 
             <div class="simulator"><div class="card-title">📉 策略模擬與非線性風險預警 (線性回歸)</div>
                 <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
@@ -634,7 +626,7 @@
                     ${buildMetricRow('粉絲總數', 'fas fa-users', currFans.toLocaleString(), '', fansChangeHtml)}
                     ${buildMetricRow('互動率中位數', 'fas fa-comment-dots', engRate.toFixed(2), '%', engChangeHtml)}
                     ${buildMetricRow('該月總觸及', 'fas fa-chart-line', currReach.toLocaleString(), '', reachChangeHtml)}
-                </div>`;;
+                </div>`;
         }
         document.getElementById('coreMetrics').innerHTML = `<div class="dual-metric">${htmlOutput}</div>`;
     }
@@ -759,7 +751,7 @@
         document.getElementById('highlightPostContainer').innerHTML = html;
     }
     
-function renderLeverage() {
+    function renderLeverage() {
         const platforms = ['IG', 'FB', 'Threads'];
         let html = '';
         for(let plat of platforms){
@@ -813,7 +805,7 @@ function renderLeverage() {
                 html += `<div class="lever-row" style="align-items: flex-start;">
                             <div style="display:flex; flex-direction:column; max-width: 250px;">
                                 <span>📢 非粉絲佔比</span>
-                                <span style="font-size:0.5rem; color:#888; margin-top:4px; line-height:1.4;">(該月各篇非粉%總和) ÷ 該月篇數<br>反映的是「每篇貼文的平均出圈機率」，而不是「總流量的絕對非粉池」。</span>
+                                <span style="font-size:0.7rem; color:#888; margin-top:4px; line-height:1.4;">(該月各篇非粉%總和) ÷ 該月篇數<br>反映的是「每篇貼文的平均出圈機率」，而不是「總流量的絕對非粉池」。</span>
                             </div>
                             <span style="margin-top:2px;">${nonFansRatio.toFixed(1)}%</span>
                          </div>`;
@@ -823,7 +815,7 @@ function renderLeverage() {
         document.getElementById('leverageContainer').innerHTML = html;
     }
 
-function renderChannelRecap(){
+    function renderChannelRecap(){
         const platforms = ['IG','FB','LINE','YouTube','Threads'];
         let channelData = [];
         
@@ -840,13 +832,12 @@ function renderChannelRecap(){
             }
         }
         
-        // ✅ 修正點 1：排除 IG, FB, LINE 參與「最低互動率」的比較 (因為畫面上不顯示了)
+        // 排除 IG, FB, LINE 參與「最低互動率」的比較
         const activeChannels = channelData.filter(c => c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
         const minEng = activeChannels.length > 0 ? Math.min(...activeChannels.map(c => c.engagementRate)) : -1;
         
         let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
-            // 只有被納入計算的頻道且互動率最低，才會亮起「最低互動率」的紅框
             const isLowest = (c.engagementRate === minEng && c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
             let trafficLabel = '📊流量MID';
             if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及MID';
@@ -854,7 +845,6 @@ function renderChannelRecap(){
             if (c.platform === 'LINE') trafficLabel = '🗳️投票MID';
             if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看MID';
             
-            // ✅ 修正點 2：針對 IG、FB、LINE 隱藏互動率文字
             let engHtml = '';
             if (!['IG', 'FB', 'LINE'].includes(c.platform)) {
                 engHtml = `<span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>`;
@@ -879,7 +869,6 @@ function renderChannelRecap(){
         let html = '';
         
         for(let plat of platforms){
-            // 1. 計算該平台最大空窗期
             const platPosts = allPostsGlobal.filter(p => p.platform === plat).sort((a,b) => new Date(a.date) - new Date(b.date));
             let maxGap = 0;
             if(platPosts.length > 1){
@@ -891,8 +880,7 @@ function renderChannelRecap(){
                 }
             }
 
-            // 2. 依照平台設定專屬門檻 (limitYellow: 黃燈起點, limitRed: 紅燈起點)
-            let limitYellow = 6, limitRed = 10; // 預設給 IG / FB
+            let limitYellow = 6, limitRed = 10; 
             
             if (plat === 'Threads') {
                 limitYellow = 3; limitRed = 6;
@@ -902,7 +890,6 @@ function renderChannelRecap(){
                 limitYellow = 15; limitRed = 29;
             }
 
-            // 3. 判定燈號與文字
             let statusText = '';
             let lampClass = '';
             
@@ -920,7 +907,6 @@ function renderChannelRecap(){
                 lampClass = 'lamp-green';
             }
 
-            // 4. 輸出卡片 HTML
             html += `<div class="rhythm-card">
                         <i class="fab fa-${plat==='YouTube'?'youtube':plat.toLowerCase()}"></i>
                         <div class="platform-name">${plat}</div>
@@ -1009,39 +995,34 @@ function renderChannelRecap(){
         document.getElementById('predictionResult').innerHTML = `♟️ 策略組合：貼文 ${postDelta>=0?'+'+postDelta:postDelta}篇/月｜按讚 ${likeDelta>=0?'+'+likeDelta:likeDelta}/篇｜分享 ${shareDelta>=0?'+'+shareDelta:shareDelta}/篇<br>📢 預估流量: ${Math.round(finalPredReach).toLocaleString()}<br>♥️ 淨增粉絲: ${netGain.toLocaleString()}<br>➤ 預估粉絲總數: ${predictedFans.toLocaleString()}`;
     }
     
-function updateDeadlineAndRedraw() {
+    function updateDeadlineAndRedraw() {
         const datePicker = document.getElementById('customTargetDate');
         const remainSpan = document.getElementById('targetDaysRemaining');
         
         if(datePicker && remainSpan){
-            // 取得選取的日期
             const selectedDate = new Date(datePicker.value);
             if(!isNaN(selectedDate.getTime())) targetDate = selectedDate;
             
-            // 取得今天日期，並將時間歸零 (只比對日期)
             const today = new Date(); 
             today.setHours(0,0,0,0);
             
             const targetDay = new Date(targetDate); 
             targetDay.setHours(0,0,0,0);
             
-            // 計算相差天數
             const diffTime = targetDay - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            // 動態改變顯示文字與樣式
             if (diffDays > 0) {
                 remainSpan.innerHTML = `⏳ 剩餘 <strong>${diffDays}</strong> 天`;
                 remainSpan.style.color = 'var(--primary-text)';
             } else if (diffDays === 0) {
                 remainSpan.innerHTML = `⏳ <strong>今天到期！</strong>`;
-                remainSpan.style.color = '#e65100'; // 橘色提醒
+                remainSpan.style.color = '#e65100'; 
             } else {
                 remainSpan.innerHTML = `⚠️ 已過期 <strong>${Math.abs(diffDays)}</strong> 天`;
-                remainSpan.style.color = '#c62828'; // 紅色警告
+                remainSpan.style.color = '#c62828'; 
             }
             
-            // 同步更新右側依賴此日期的「觸及理想斜率圖表」
             if(typeof renderReachChart === 'function') renderReachChart();
         }
     }
