@@ -506,17 +506,18 @@
         ctx.fillStyle='#e0f0d8'; ctx.fillRect(0,0,canvas.width,canvas.height);
     }
 
-    // 左側大腦建構
+// 左側大腦建構
     function buildLeftBrain() {
         const avgBest = currentBestThree.reduce((s,p)=>s+p.rate,0)/currentBestThree.length;
         const avgWorst = currentWorstThree.reduce((s,p)=>s+p.rate,0)/currentWorstThree.length;
-        let compareAdvice = avgBest > avgWorst*3 ? `最佳互動率(${avgBest.toFixed(1)}%) 是劣勢的${(avgBest/avgWorst).toFixed(1)}倍，建議複製最佳元素` : `最佳與最差差距僅${(avgBest-avgWorst).toFixed(1)}%，建議A/B測試`;
+        let compareAdvice = avgBest > avgWorst*3 ? `最佳互動率(${avgBest.toFixed(1)}%) 是劣勢的${(avgBest/avgWorst).toFixed(1)}倍，建議複製最佳元素。` : `最佳與最差差距僅${(avgBest-avgWorst).toFixed(1)}%，建議A/B測試。`;
         const bestHasIP = currentBestThree.filter(p=>p.hasIP).length;
         const worstHasIP = currentWorstThree.filter(p=>p.hasIP).length;
-        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳IP佔比較高，強化IP有幫助。`;
+        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽bao」佔比較高，強化此 IP 顯著有效。`;
         let warmth = 50 + (currentIPInteract - currentNonInteract)*2;
         warmth = Math.min(95, Math.max(5, warmth));
         setTimeout(()=>{ drawHalfGauge('brandGauge', warmth); },100);
+        
         const leftHtml = `
             <div class="card"><div class="card-title">🧠 戰略診斷</div>
                 <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}">📊 戰術狀態</div>
@@ -527,7 +528,7 @@
             </div>
             <div class="card"><div class="card-title">⚖️ 品牌平衡計 (溫暖 vs 專業)</div>
                 <div class="gauge-half"><canvas id="brandGauge" width="160" height="80"></canvas></div>
-                <div class="small-note">IP貼文帶動溫暖感，建議維持比例</div>
+                <div class="small-note">🌱 芽bao貼文帶動溫暖感，建議維持比例</div>
             </div>
             <div class="card"><div class="card-title">🎚️ 策略模擬器</div>
                 <div class="slider-group"><label>下個月目標日均貼文數</label><input type="range" id="strategyTargetSliderDynamic" min="0" max="5" step="0.2" value="1.5"></div>
@@ -537,14 +538,21 @@
                 <div class="small-note">📐 信念校準：預測準確率82% (非線性風險已標註)</div>
             </div>
             <div class="card"><div class="card-title">💡 顧問即時建議</div>
-                <div>${compareAdvice}</div><hr>
-                <div class="flex-between"><span>IP溢價</span><strong>+${currentPremium}%</strong></div>
-                <div class="flex-between"><span>有IP互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
-                <div class="flex-between"><span>無IP互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
+                <!-- 🌟 L10-3 聯動校準的目標容器 -->
+                <div id="dynamicAdviceBox">
+                    <div style="margin-bottom:12px;">${compareAdvice}</div>
+                </div>
+                <hr>
+                <!-- 🌟 L7-1 雙重編碼同步 -->
+                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽bao溢價</span><strong>+${currentPremium}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>有芽bao互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:12px;"><span>無芽寶互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
                 <button class="action-link" onclick="location.href='audience.html'">👥 前往客群分析</button>
             </div>
         `;
         document.getElementById('leftBrain').innerHTML = leftHtml;
+        
+        // 綁定 Slider ... (保留原本邏輯)
         const slider = document.getElementById('strategyTargetSliderDynamic');
         const rateSpan = document.getElementById('simulateRate');
         const boostSpan = document.getElementById('simulateBoost');
@@ -556,17 +564,7 @@
             rateSpan.innerText = newRate.toFixed(0)+'%';
             boostSpan.innerText = '+'+boost+'%';
         };
-        slider.addEventListener('input', updateSim);
-        updateSim();
-        // 重新綁定右側按鈕（因為右側重建後需要重新綁定事件，但右側已經有內部監聽）
-        const rightApply = document.getElementById('applyStrategyBtnDynamic');
-        if(rightApply) rightApply.onclick = () => {
-            let targetDaily = parseFloat(slider.value);
-            let nextYear = currentMonthA.month === 12 ? currentMonthA.year+1 : currentMonthA.year;
-            let nextMonth = currentMonthA.month === 12 ? 1 : currentMonthA.month+1;
-            renderPredictedCalendar('predictionArea', nextYear, nextMonth, targetDaily, `${currentMonthA.year}/${currentMonthA.month}`);
-            alert(`✅ 已產生 ${nextYear}年 ${nextMonth}月 預測月曆`);
-        };
+        if(slider) { slider.addEventListener('input', updateSim); updateSim(); }
     }
     function drawHalfGauge(id, warmth){
         const canvas = document.getElementById(id);
