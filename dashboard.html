@@ -1026,16 +1026,61 @@
     
     function renderHighlightChampions(allPosts) {
         const champs = findChampions(allPosts);
+        
         const buildCard = (item) => {
-            const rawContent = (item.post['貼文內容'] || '貼文').slice(0,25);
-            const safeContent = escapeHTML(rawContent); 
-            return `<div class="champion-card"><i class="fab fa-${item.platform.toLowerCase()}"></i> <strong>${item.platform}</strong><br>${safeContent}…<br>🔥 觸及 ${item.reach.toLocaleString()}</div>`;
+            // 1. 處理日期格式 (轉為 YYYY-MM-DD)
+            let dateStr = '無日期';
+            if (item.post.date) {
+                const d = item.post.date;
+                dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            }
+            
+            // 2. 智慧抓取欄位
+            const projType = escapeHTML(item.post['專案類型'] || (item.post.raw && item.post.raw['專案類型']) || '無資料');
+            const theme = escapeHTML(item.post['活動主題'] || (item.post.raw && item.post.raw['活動主題']) || '無資料');
+            const format = escapeHTML(item.post['格式'] || (item.post.raw && item.post.raw['格式']) || (item.post.raw && item.post.raw['貼文格式']) || '無資料');
+
+            // 3. 輸出精美的「爆款公式」卡片 HTML
+            return `
+                <div class="champion-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #fef0c8; padding-bottom:8px; margin-bottom:10px;">
+                        <span style="font-size:1.1rem; color:var(--primary-dark);"><i class="fab fa-${item.platform.toLowerCase()}"></i> <strong>${item.platform}</strong></span>
+                        <span style="font-size:0.75rem; color:#666; background:#f5f5f5; padding:2px 8px; border-radius:12px;">📅 ${dateStr}</span>
+                    </div>
+                    
+                    <div style="font-size:0.85rem; color:#4a5d4e; line-height:1.8; margin-bottom:12px;">
+                        <div style="display:flex; margin-bottom:4px;">
+                            <span style="background:#eef5ea; color:var(--primary-dark); padding:2px 6px; border-radius:4px; font-size:0.75rem; margin-right:8px; white-space:nowrap; height:fit-content;">專案</span> 
+                            <span>${projType}</span>
+                        </div>
+                        <div style="display:flex; margin-bottom:4px;">
+                            <span style="background:#eef5ea; color:var(--primary-dark); padding:2px 6px; border-radius:4px; font-size:0.75rem; margin-right:8px; white-space:nowrap; height:fit-content;">主題</span> 
+                            <span>${theme}</span>
+                        </div>
+                        <div style="display:flex;">
+                            <span style="background:#eef5ea; color:var(--primary-dark); padding:2px 6px; border-radius:4px; font-size:0.75rem; margin-right:8px; white-space:nowrap; height:fit-content;">格式</span> 
+                            <span>${format}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="color:#e65100; font-weight:700; font-size:1rem; background:#fff8e1; padding:6px 12px; border-radius:8px; display:inline-block; border:1px solid #ffe0b2;">
+                        🔥 觸及 ${item.reach.toLocaleString()}
+                    </div>
+                </div>`;
         };
 
-        const monthHtml = champs.monthItems.length ? champs.monthItems.map(item => buildCard(item)).join('') : '<div class="champion-card">無資料</div>';
-        const quarterHtml = champs.quarterItems.length ? champs.quarterItems.map(item => buildCard(item)).join('') : '<div class="champion-card">無資料</div>';
-        const html = `<div class="highlight-champion"><strong>📅 本月最高觸及 (${champs.monthLabel})</strong><div class="champion-row">${monthHtml}</div></div>
-                      <div class="highlight-champion"><strong>📆 本季最高觸及 (${champs.quarterLabel})</strong><div class="champion-row">${quarterHtml}</div></div>`;
+        const monthHtml = champs.monthItems.length ? champs.monthItems.map(item => buildCard(item)).join('') : '<div class="champion-card" style="color:#888; text-align:center; padding:20px;">本月尚無貼文資料</div>';
+        const quarterHtml = champs.quarterItems.length ? champs.quarterItems.map(item => buildCard(item)).join('') : '<div class="champion-card" style="color:#888; text-align:center; padding:20px;">本季尚無貼文資料</div>';
+        
+        // 將季度說明加入到最底部，並套用一致的 info-note 樣式
+        const html = `
+            <div class="highlight-champion"><strong>🏆 本月最高觸及 (${champs.monthLabel})</strong><div class="champion-row">${monthHtml}</div></div>
+            <div class="highlight-champion" style="margin-bottom:12px;"><strong>🎖️ 本季最高觸及 (${champs.quarterLabel})</strong><div class="champion-row">${quarterHtml}</div></div>
+            <div class="info-note" style="margin-top:0; margin-bottom:8px; width:100%;">
+                🔔 配合團隊工作行事曆：Q1(12月-2月)、Q2(3月-5月)、Q3(6月-8月)、Q4(9月-11月)
+            </div>
+        `;
+        
         document.getElementById('highlightPostContainer').innerHTML = html;
     }
     
