@@ -887,21 +887,6 @@
         };
         if(slider) { slider.addEventListener('input', updateSim); updateSim(); }
     }
-    function drawHalfGauge(id, warmth){
-        const canvas = document.getElementById(id);
-        if(!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const w=canvas.width, h=canvas.height;
-        ctx.clearRect(0,0,w,h);
-        const cx=w/2, cy=h, rad=w/2-5;
-        const start=Math.PI, end=2*Math.PI;
-        ctx.beginPath(); ctx.arc(cx,cy,rad,start,end); ctx.strokeStyle="#ddd"; ctx.lineWidth=10; ctx.stroke();
-        const angle = start + (warmth/100)*Math.PI;
-        ctx.beginPath(); ctx.arc(cx,cy,rad,start,angle); ctx.strokeStyle="#7cb342"; ctx.stroke();
-        ctx.fillStyle="#2c3e2f"; ctx.font="bold 12px Inter"; ctx.fillText(`${Math.round(warmth)}%`, cx-15, cy-12);
-        ctx.fillStyle="#7c8b72"; ctx.font="10px Inter"; ctx.fillText("溫暖", cx-35, cy-5); ctx.fillText("專業", cx+25, cy-5);
-    }
-
     // 主流程
     async function main() {
         const channelSelect = document.getElementById('globalChannelSelect');
