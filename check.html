@@ -700,13 +700,15 @@
             { label:'按讚數', data:[apr.likes, may.likes], backgroundColor:'#f4b942' }
         ]}, options:{ responsive:true, maintainAspectRatio:true } });
     }
-    function drawIPStackMini(){
+function drawIPStackMini(){
         const daily = new Map();
         // 1. 蒐集每天的「總互動」與「總觀看」
         currentPosts.forEach(p => { 
-            let d = p.date; 
-            if(!daily.has(d)) daily.set(d, { ipInt:0, ipView:0, nonipInt:0, nonipView:0 }); 
-            let val = daily.get(d); 
+            // 🌟 核心修復：強制把時間戳記 (剩下) 切除，無論是空白還是 'T' 分隔，都只保留日期
+            let cleanDate = p.date.split('T')[0].split(' ')[0]; 
+            
+            if(!daily.has(cleanDate)) daily.set(cleanDate, { ipInt:0, ipView:0, nonipInt:0, nonipView:0 }); 
+            let val = daily.get(cleanDate); 
             if(p.hasIP) { 
                 val.ipInt += p.interactions; 
                 val.ipView += p.views; 
@@ -718,10 +720,10 @@
         
         const sorted = Array.from(daily.keys()).sort();
         
-        // 🌟 2. 簡化 X 軸日期格式：YYYY-MM-DD -> YY/MM/DD
+        // 🌟 2. 簡化 X 軸日期格式：YYYY-MM-DD -> YY/MM/DD (完美呈現 25/05/01)
         const formattedLabels = sorted.map(d => d.substring(2).replace(/-/g, '/'));
         
-        // 🌟 3. 計算「芽bao互動率」：(互動數 / 觀看數) * 100
+        // 3. 計算「芽寶互動率」：(互動數 / 觀看數) * 100
         const ipData = sorted.map(d => {
             let val = daily.get(d);
             return val.ipView ? (val.ipInt / val.ipView * 100) : 0;
@@ -761,14 +763,13 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        // 🌟 給 Y 軸一個動態天花板，讓區間帶保持在畫面中下半部，不怕爆款極端值壓縮圖表
+                        // 給 Y 軸一個動態天花板，讓區間帶保持在畫面中下半部
                         suggestedMax: avgIPRate * 2.0
                     }
                 }
             } 
         });
     }
-
     function drawBubbleMini(){
         const canvas=document.getElementById('bubbleMini');
         if(!canvas || !currentPackages.length) return;
