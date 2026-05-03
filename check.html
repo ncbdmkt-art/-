@@ -728,20 +728,20 @@
             rulesHtml = `✔️ <strong>YouTube 達標門檻：</strong><br>- 單篇：觀看 &ge; 200、點讚 &ge; 5、續看率 &ge; 10%`;
         }
 
-        // 🌟 新增：戰術狀態的動態燈號與專屬色碼
+        // 戰術狀態的動態燈號與專屬色碼
         let statusColor, statusText, statusIcon;
         if (currentPassRate >= 70) {
             statusColor = '#2e7d32'; // 深綠色
             statusText = '穩定';
-            statusIcon = '🟢';
+            statusIcon = '';
         } else if (currentPassRate >= 40) {
             statusColor = '#e67e22'; // 橘黃色
             statusText = '需改善';
-            statusIcon = '🟡';
+            statusIcon = ''; // 清空黃色燈號
         } else {
             statusColor = '#d9534f'; // 紅色
             statusText = '危急';
-            statusIcon = '🔴';
+            statusIcon = '';
         }
 
         // 運算邏輯
@@ -751,7 +751,7 @@
         
         const bestHasIP = currentBestThree.filter(p=>p.hasIP).length;
         const worstHasIP = currentWorstThree.filter(p=>p.hasIP).length;
-        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽寶」佔比較高，強化此 IP 顯著有效。`;
+        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽bao」佔比較高，強化此 IP 顯著有效。`;
         
         let warmth = 50 + (currentIPInteract - currentNonInteract)*2;
         warmth = Math.min(95, Math.max(5, warmth));
@@ -770,36 +770,36 @@
                     <strong>💡 數據運算與推估邏輯：</strong><br>
                     <div style="margin-top:6px; line-height:1.6; font-size: 0.75rem;">
                         ${rulesHtml}<br><br>
-                        🚥 <strong>戰術燈號：</strong> <span style="color:#2e7d32; font-weight:600;">🟢 穩定 &ge; 70%</span> ｜ <span style="color:#e65100; font-weight:600;">🟡 改善 40~69%</span> ｜ <span style="color:#c62828; font-weight:600;">🔴 危急 &lt; 40%</span>。<br>
+                        🚥 <strong>戰術燈號：</strong> <span style="color:#2e7d32; font-weight:600;">🟢 穩定 &ge; 70%</span> ｜ <span style="color:#e67e22; font-weight:600;">改善 40~69%</span> ｜ <span style="color:#c62828; font-weight:600;">🔴 危急 &lt; 40%</span>。<br>
                         📉 <strong>粉絲損失計算：</strong> 計算「未達標貼文」互動缺口乘以 0.05% 的轉粉常數，推算錯失的潛在粉絲。<br>
                         ⏳ <strong>推遲天數：</strong> 流失粉絲數 &divide; 每日 50 粉常態增長基準。
                     </div>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px;">
-                    <div>
-                        <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}" style="margin-bottom:8px;">📊 戰術狀態</div>
-                        
-                        <!-- 🌟 視覺高度綁定：顏色 + 數據 + 燈號圖示 + 狀態文字，全部合體 -->
-                        <div style="color:${statusColor}; font-weight:800; display:flex; align-items:baseline; gap:8px;">
-                            <span style="font-size:2rem; line-height:1;">${currentPassRate}%</span>
-                            <span style="font-size:1rem; font-weight:700;">${statusIcon} 整體達標率 ${statusText}</span>
-                        </div>
-                    </div>
-                    <div style="text-align:right; margin-bottom:4px;">
-                        <span style="background:#f4faf0; color:var(--primary-dark); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid #c5e0b4;">
-                            🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}粉絲
-                        </span>
+                <!-- 🌟 移除原本在這裡的 KPI，讓上方的戰略數據更純粹 -->
+                <div style="margin-bottom:12px;">
+                    <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}" style="margin-bottom:8px;">📊 戰術狀態</div>
+                    
+                    <div style="color:${statusColor}; font-weight:800; display:flex; align-items:baseline; gap:8px;">
+                        <span style="font-size:2rem; line-height:1;">${currentPassRate}%</span>
+                        <span style="font-size:1rem; font-weight:700;">${statusIcon}整體達標率 ${statusText}</span>
                     </div>
                 </div>
                 
                 <div class="advice-text">⚠️ 機會成本：若不改善，${targetText} 粉絲目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
-                <button class="action-link" style="margin-top:12px;" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
+                
+                <!-- 🌟 全新排版：KPI 在左，按鈕在右，完美收合在機會成本正下方 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                    <span style="background:#f4faf0; color:var(--primary-dark); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid #c5e0b4;">
+                        🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}粉絲
+                    </span>
+                    <button class="action-link" style="margin:0;" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
+                </div>
             </div>
             
             <div class="card"><div class="card-title">⚖️ 品牌平衡計 (溫暖 vs 專業)</div>
                 <div class="gauge-half"><canvas id="brandGauge" width="160" height="80"></canvas></div>
-                <div class="small-note">🌱 芽寶貼文帶動溫暖感，建議維持比例</div>
+                <div class="small-note">🌱 芽bao貼文帶動溫暖感，建議維持比例</div>
             </div>
             
             <div class="card"><div class="card-title">🎚️ 策略模擬器</div>
@@ -815,9 +815,9 @@
                     <div style="margin-bottom:12px;">${compareAdvice}</div>
                 </div>
                 <hr>
-                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽寶溢價</span><strong>+${currentPremium}%</strong></div>
-                <div class="flex-between" style="margin-bottom:6px;"><span>有芽寶互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
-                <div class="flex-between" style="margin-bottom:12px;"><span>無芽寶互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽bao溢價</span><strong>+${currentPremium}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>有芽bao互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:12px;"><span>無芽bao互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
                 <button class="action-link" onclick="location.href='audience.html'">👥 前往客群分析</button>
             </div>
         `;
