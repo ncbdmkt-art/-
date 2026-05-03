@@ -597,37 +597,71 @@
         ]}, options:{ responsive:true, maintainAspectRatio:true } });
     }
     function drawIPStackMini(){
-        const daily=new Map();
-        currentPosts.forEach(p=>{ let d=p.date; if(!daily.has(d)) daily.set(d,{ip:0,nonip:0}); let val=daily.get(d); if(p.hasIP) val.ip+=p.interactions; else val.nonip+=p.interactions; });
-        const sorted=Array.from(daily.keys()).sort();
-        const ipData=sorted.map(d=>daily.get(d).ip);
+        const daily = new Map();
+        // 1. 蒐集每天的「總互動」與「總觀看」
+        currentPosts.forEach(p => { 
+            let d = p.date; 
+            if(!daily.has(d)) daily.set(d, { ipInt:0, ipView:0, nonipInt:0, nonipView:0 }); 
+            let val = daily.get(d); 
+            if(p.hasIP) { 
+                val.ipInt += p.interactions; 
+                val.ipView += p.views; 
+            } else { 
+                val.nonipInt += p.interactions; 
+                val.nonipView += p.views; 
+            } 
+        });
         
-        // 🌟 L9-1 不確定性的視覺提示：建立區間帶 (上下浮動 20%)
-        const avgIP = ipData.reduce((a,b)=>a+b,0) / (ipData.length || 1) || 50;
-        const targetUpperBand = ipData.map(() => avgIP * 1.2);
-        const targetLowerBand = ipData.map(() => avgIP * 0.8);
+        const sorted = Array.from(daily.keys()).sort();
         
-        // 判定實際數據是否跌出區間外 (觸發 L1-1 紅色脈衝)
-        const isFailing = ipData.some((val, i) => val < targetLowerBand[i]);
+        // 🌟 2. 簡化 X 軸日期格式：YYYY-MM-DD -> YY/MM/DD
+        const formattedLabels = sorted.map(d => d.substring(2).replace(/-/g, '/'));
+        
+        // 🌟 3. 計算「芽bao互動率」：(互動數 / 觀看數) * 100
+        const ipData = sorted.map(d => {
+            let val = daily.get(d);
+            return val.ipView ? (val.ipInt / val.ipView * 100) : 0;
+        });
+        
+        // 4. 動態建立基準線與區間帶 (排除0的空資料天數)
+        const validRates = ipData.filter(r => r > 0);
+        const avgIPRate = validRates.length ? validRates.reduce((a,b)=>a+b,0) / validRates.length : 2; 
+        
+        // 設定上下浮動 30% 為區間
+        const targetUpperBand = ipData.map(() => avgIPRate * 1.3); 
+        const targetLowerBand = ipData.map(() => avgIPRate * 0.7); 
+        
+        // 判定實際數據是否跌出區間外 (觸發紅色脈衝)
+        const isFailing = ipData.some((val, i) => val > 0 && val < targetLowerBand[i]);
         const chartCard = document.getElementById('ipStackMini').closest('.quad-card');
         if (isFailing) { chartCard.classList.add('critical-alert'); } 
         else { chartCard.classList.remove('critical-alert'); }
 
-        const ctx=document.getElementById('ipStackMini')?.getContext('2d');
+        const ctx = document.getElementById('ipStackMini')?.getContext('2d');
         if(!ctx) return;
         if(window.stackMini) window.stackMini.destroy();
+        
         window.stackMini = new Chart(ctx, { 
             type:'line', 
             data:{ 
-                labels:sorted, 
+                labels: formattedLabels, 
                 datasets:[
-                    { label:'🌱 芽bao實際互動', data:ipData, backgroundColor:'rgba(124,179,66,0.6)', borderColor:'#7cb342', fill:false, tension:0.3, z:10 },
-                    // 利用 Chart.js fill 特性畫出區間帶
-                    { label:'理想高標', data:targetUpperBand, borderColor:'transparent', pointRadius:0, fill:false },
-                    { label:'理想區間帶', data:targetLowerBand, borderColor:'rgba(244,185,66,0.5)', backgroundColor:'rgba(244,185,66,0.15)', pointRadius:0, fill:'-1' }
+                    { label:'🌱 芽bao互動率(%)', data:ipData, backgroundColor:'rgba(124,179,66,0.6)', borderColor:'#7cb342', fill:false, tension:0.3, z:10 },
+                    { label:'高標區間', data:targetUpperBand, borderColor:'transparent', pointRadius:0, fill:false },
+                    { label:'常態守備範圍', data:targetLowerBand, borderColor:'rgba(244,185,66,0.5)', backgroundColor:'rgba(244,185,66,0.15)', pointRadius:0, fill:'-1' }
                 ]
             }, 
-            options:{ responsive:true, maintainAspectRatio:true } 
+            options:{ 
+                responsive:true, 
+                maintainAspectRatio:true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        // 🌟 給 Y 軸一個動態天花板，讓區間帶保持在畫面中下半部，不怕爆款極端值壓縮圖表
+                        suggestedMax: avgIPRate * 2.0
+                    }
+                }
+            } 
         });
     }
 
@@ -823,9 +857,9 @@
                          style="position: absolute; 
                                 bottom: -20%;   /* 📍 配合底圖的圓心高度往下微調 */
                                 left: 50%; 
-                                width: 32px;    /* 📍 水滴指針稍微放大，讓它更清楚 */
-                                margin-left: -16px; /* 寬度的一半，確保水平居中 */
-                                transform-origin: center 85%; /* 📍 旋轉軸心設定在水滴的粉色圓點處 (約高度的 70% 位置) */
+                                width: 24px;    /* 📍 水滴指針稍微放大，讓它更清楚 */
+                                margin-left: -12px; /* 寬度的一半，確保水平居中 */
+                                transform-origin: center 70%; /* 📍 旋轉軸心設定在水滴的粉色圓點處 (約高度的 70% 位置) */
                                 transform: rotate(${pointerAngle}deg); 
                                 transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
                                 z-index: 10;">
