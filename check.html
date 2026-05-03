@@ -867,14 +867,28 @@
 
     // 主流程
     async function main() {
-        const channel = document.getElementById('globalChannelSelect').value;
+        const channelSelect = document.getElementById('globalChannelSelect');
+        const channel = channelSelect ? channelSelect.value : 'all';
+        const mainDash = document.getElementById('mainDashboard');
+        
+        // 若無資料，顯示錯誤訊息 (防呆：若是 all 會顯示全渠道)
         if(!refreshData(channel)) {
-            document.getElementById('mainDashboard').innerHTML = `<div class="card"><p>⚠️ 尚無「${channel}」數據，請先上傳。</p></div>`;
+            const channelName = channel === 'all' ? '全渠道' : channel;
+            mainDash.innerHTML = `<div class="card" style="width:100%;"><p style="color:#d9534f; font-weight:bold; font-size:1.1rem;">⚠️ 尚無「${channelName}」數據，請先至「上傳資料」頁面匯入 CSV。</p></div>`;
             return;
         }
+        
+        // 🌟 關鍵修復：每次確定有資料時，先幫左腦與右腦的容器「滿血復活」！
+        mainDash.innerHTML = `
+            <div class="strategy-brain" id="leftBrain"></div>
+            <div class="evidence-panel" id="rightPanel"></div>
+        `;
+        
+        // 接著才開始安全地將資料填入容器
         buildLeftBrain();
         buildRightPanel();
     }
+
     document.getElementById('globalChannelSelect').addEventListener('change', main);
     main();
 </script>
