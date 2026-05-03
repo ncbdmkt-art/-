@@ -504,22 +504,44 @@
         currentBestThree = postsWithRate.slice(0,3);
         currentWorstThree = postsWithRate.slice(-3).reverse();
         
-        // 行銷包裹
+// 行銷包裹 (泡泡圖資料準備)
         const pkgMap = new Map();
+        
+        // 🌟 校正 A：找出這批資料的「最新日期」，作為我們看報表的「現在時間視角」
+        let dashboardToday = currentPosts.length ? new Date(currentPosts[0].date) : new Date();
+
         currentPosts.forEach(p => {
             let camp = p.campaign || `活動-${p.date.slice(0,7)}-${p.platform}`;
             if(!pkgMap.has(camp)) pkgMap.set(camp, { name:camp, totalReach:0, totalInteractions:0, endDate:null });
             let d = pkgMap.get(camp);
             d.totalReach += p.views;
             d.totalInteractions += p.interactions;
-            let pd = new Date(p.date);
+            
+            // 🌟 校正 B：精準抓取 CSV 中的截止日期
+            // 系統會優先找 CSV 欄位名稱叫「截止日期」或「活動截止」的值，如果沒有，才用貼文日期代入
+            let explicitEndDate = p.raw && (p.raw['截止日期'] || p.raw['活動截止'] || p.raw['endDate']);
+            let pd = explicitEndDate ? new Date(explicitEndDate) : new Date(p.date);
+            
             if(!d.endDate || pd > d.endDate) d.endDate = pd;
         });
-        currentPackages = Array.from(pkgMap.values()).map(p => ({
-            name: p.name, reach: p.totalReach,
-            interactionRate: p.totalReach ? (p.totalInteractions/p.totalReach)*100 : 0,
-            daysLeft: Math.max(0, Math.ceil((new Date(p.endDate).setDate(p.endDate.getDate()+7) - new Date())/(1000*3600*24)))
-        }));
+        
+        currentPackages = Array.from(pkgMap.values()).map(p => {
+            // 如果 CSV 沒有提供截止日期，系統預設：活動在最後一篇貼文發出後的 14~21 天結束
+            let finalEnd = new Date(p.endDate);
+            // (隱藏邏輯：如果有寫死時間，我們就不動它；若無，我們可視為最後貼文+14天)
+            
+            // 計算剩餘天數 = (活動截止日 - 報表視角今日) / 每天的毫秒數
+            let daysLeft = Math.max(0, Math.ceil((finalEnd - dashboardToday) / (1000 * 3600 * 24)));
+            // 如果是沒有設截止日的普通貼文，我們預設給它 +14 天的長尾擴散期
+            if (daysLeft === 0) daysLeft = 14; 
+            
+            return {
+                name: p.name, 
+                reach: p.totalReach,
+                interactionRate: p.totalReach ? (p.totalInteractions/p.totalReach)*100 : 0,
+                daysLeft: daysLeft
+            };
+        });
         
         // 準備月曆用 Map
         let postsByDate = new Map(), qualifiedByDate = new Map(), progressByDate = new Map(), postCount = new Map(), hasIP = new Map(), dailyRate = new Map();
