@@ -121,26 +121,122 @@
         const raw = localStorage.getItem(`posts_${channel}`);
         return raw ? JSON.parse(raw) : [];
     }
-    function isPostQualified(post) {
-        if (post.platform === 'IG') return (post.views >= 1500 && post.likes >= 15);
-        if (post.platform === 'Threads') return (post.views >= 100 && post.likes >= 5);
-        return true;
+// ========== 🌟 核心變數與資料解析工具 ==========
+    let currentSelectedChannel = 'all'; // 記錄當前選單狀態
+
+    // 安全地將原始資料(可能含%,或字串)轉為數字
+    function getParsedValue(val) {
+        if (typeof val === 'string') {
+            let v = parseFloat(val.replace(/[^\d.-]/g, ''));
+            if (val.includes('%')) v = v / 100;
+            return isNaN(v) ? 0 : v;
+        }
+        return val || 0;
     }
-    function getProgress(post) {
-        if (post.platform === 'IG') {
-            let vp = Math.min(1, post.views / 1500);
-            let lp = Math.min(1, post.likes / 15);
-            return Math.min(vp, lp);
-        } else if (post.platform === 'Threads') {
-            let vp = Math.min(1, post.views / 100);
-            let lp = Math.min(1, post.likes / 5);
-            return Math.min(vp, lp);
-        } else return 1.0;
+
+    // ========== 🌟 動態達標判定引擎 ==========
+    function isPostQualified(post) {
+        const plat = post.platform;
+        const cat = post.category || (post.raw && post.raw['專案類型']) || '';
+        const fmt = post.contentType || (post.raw && (post.raw['格式'] || post.raw['貼文格式'])) || '';
+        
+        const isPromo = cat.includes('推廣') || cat.includes('行銷');
+        const isVideo = fmt.includes('影') || fmt.includes('Reels') || fmt.includes('video') || fmt.includes('Shorts');
+        const isPoll = fmt.includes('投') || fmt.includes('poll');
+        
+        const views = getParsedValue(post.views || (post.raw && (post.raw['觀看次數'] || post.raw['views'] || post.raw['觸及帳號'])));
+        const likes = getParsedValue(post.likes || (post.raw && post.raw['點讚數']));
+        const interactions = getParsedValue(post.interactions || (post.raw && post.raw['互動數']));
+        const nfr = getParsedValue(post.nonFollowerRatio || (post.raw && post.raw['非粉絲比例']));
+        const ret = getParsedValue(post.retentionRate || (post.raw && post.raw['續看率']));
+        const lineVotes = getParsedValue(post.voters || (post.raw && post.raw['投票人數'])) || views;
+        const newFollowers = getParsedValue(post.newFollowers || (post.raw && post.raw['新增追蹤']));
+
+        // (1) 全渠道概覽規則
+        if (currentSelectedChannel === 'all') {
+            if (plat === 'IG' || plat === 'FB') return views >= 100 && likes >= 15;
+            if (plat === 'Threads') return views >= 100 && likes >= 5;
+            if (plat === 'LINE') return lineVotes >= 20 && likes >= 5;
+            if (plat === 'YouTube') return views >= 200 && likes >= 5;
+            return true;
+        }
+        
+        // (2) IG 專屬規則
+        if (currentSelectedChannel === 'IG' && plat === 'IG') {
+            if (!isPromo) return views >= 100 && likes >= 15;
+            if (isVideo) return views >= 1500 && likes >= 20 && nfr >= 0.15 && interactions >= 20 && ret >= 0.10;
+            return views >= 1500 && likes >= 15 && nfr >= 0.15 && interactions >= 20;
+        }
+        
+        // (3) FB 專屬規則
+        if (currentSelectedChannel === 'FB' && plat === 'FB') {
+            return views >= 100 && likes >= 15;
+        }
+        
+        // (4) Threads 專屬規則
+        if (currentSelectedChannel === 'Threads' && plat === 'Threads') {
+            if (newFollowers >= 1) return true; // Bonus: 有增粉直接達標
+            return views >= 100 && likes >= 5;
+        }
+        
+        // (5) LINE 專屬規則
+        if (currentSelectedChannel === 'LINE' && plat === 'LINE') {
+            if (isPoll) return lineVotes >= 20;
+            return likes >= 5;
+        }
+        
+        // (6) YouTube 專屬規則 (單篇)
+        if (currentSelectedChannel === 'YouTube' && plat === 'YouTube') {
+            return views >= 200 && likes >= 5 && ret >= 0.10;
+        }
+        
+        return false;
     }
     function ensureDate(post, idx) {
         if (post.date && !isNaN(new Date(post.date).getTime())) return post.date;
         const d = new Date(); d.setDate(d.getDate() - (idx % 60));
         return d.toISOString().slice(0,10);
+    }
+    // ========== 🌟 動態月曆環狀進度計算 ==========
+    function getProgress(post) {
+        const plat = post.platform;
+        const cat = post.category || (post.raw && post.raw['專案類型']) || '';
+        const fmt = post.contentType || (post.raw && (post.raw['格式'] || post.raw['貼文格式'])) || '';
+        
+        const isPromo = cat.includes('推廣') || cat.includes('行銷');
+        const isVideo = fmt.includes('影') || fmt.includes('Reels') || fmt.includes('video') || fmt.includes('Shorts');
+        const isPoll = fmt.includes('投') || fmt.includes('poll');
+        
+        const views = getParsedValue(post.views || (post.raw && (post.raw['觀看次數'] || post.raw['views'] || post.raw['觸及帳號'])));
+        const likes = getParsedValue(post.likes || (post.raw && post.raw['點讚數']));
+        const interactions = getParsedValue(post.interactions || (post.raw && post.raw['互動數']));
+        const nfr = getParsedValue(post.nonFollowerRatio || (post.raw && post.raw['非粉絲比例']));
+        const ret = getParsedValue(post.retentionRate || (post.raw && post.raw['續看率']));
+        const lineVotes = getParsedValue(post.voters || (post.raw && post.raw['投票人數'])) || views;
+        const newFollowers = getParsedValue(post.newFollowers || (post.raw && post.raw['新增追蹤']));
+
+        const calc = (...ratios) => Math.min(...ratios.map(r => Math.min(1, Math.max(0, r))));
+
+        if (currentSelectedChannel === 'all') {
+            if (plat === 'IG' || plat === 'FB') return calc(views/100, likes/15);
+            if (plat === 'Threads') return calc(views/100, likes/5);
+            if (plat === 'LINE') return calc(lineVotes/20, likes/5);
+            if (plat === 'YouTube') return calc(views/200, likes/5);
+            return 1;
+        }
+
+        if (currentSelectedChannel === 'IG' && plat === 'IG') {
+            if (!isPromo) return calc(views/100, likes/15);
+            if (isVideo) return calc(views/1500, likes/20, nfr/0.15, interactions/20, ret/0.10);
+            return calc(views/1500, likes/15, nfr/0.15, interactions/20);
+        }
+
+        if (currentSelectedChannel === 'FB' && plat === 'FB') { return calc(views/100, likes/15); }
+        if (currentSelectedChannel === 'Threads' && plat === 'Threads') { return newFollowers >= 1 ? 1 : calc(views/100, likes/5); }
+        if (currentSelectedChannel === 'LINE' && plat === 'LINE') { return isPoll ? calc(lineVotes/20) : calc(likes/5); }
+        if (currentSelectedChannel === 'YouTube' && plat === 'YouTube') { return calc(views/200, likes/5, ret/0.10); }
+
+        return 1;
     }
     function enrichPosts(rawPosts) {
         return rawPosts.map((p, idx) => {
@@ -252,17 +348,21 @@
     let currentMonthA = { year: 2025, month: 5 }, currentMonthB = { year: 2025, month: 4 };
     let postsByDateObj={}, qualifiedByDateObj={}, progressByDateObj={}, postCountObj={}, hasIPByDateObj={}, worstThreeByDate=new Map(), peakSet=new Set();
 
-    // 重新整理所有數據
+    // ========== 🌟 更新資料流 ==========
     function refreshData(channel) {
+        currentSelectedChannel = channel; // 紀錄全局變數供判定引擎使用
         let raw = getPostsByChannel(channel);
         if(!raw.length) return false;
+        
         currentPosts = enrichPosts(raw);
         let passCount = currentPosts.filter(isPostQualified).length;
         currentPassRate = (passCount/currentPosts.length*100).toFixed(0);
+        
+        // ... (以下保留你原本的 refreshData 邏輯，包含計算 currentPremium 等) ...
         const ipPosts = currentPosts.filter(p=>p.hasIP), nonPosts = currentPosts.filter(p=>!p.hasIP);
-        const calc = (arr) => arr.length ? arr.reduce((s,p)=>s+p.interactions,0)/arr.reduce((s,p)=>s+p.views,0)*100 : 0;
-        currentIPInteract = calc(ipPosts);
-        currentNonInteract = calc(nonPosts);
+        const calcRate = (arr) => arr.length ? arr.reduce((s,p)=>s+p.interactions,0)/arr.reduce((s,p)=>s+p.views,0)*100 : 0;
+        currentIPInteract = calcRate(ipPosts);
+        currentNonInteract = calcRate(nonPosts);
         currentPremium = currentNonInteract ? ((currentIPInteract-currentNonInteract)/currentNonInteract*100).toFixed(0) : 0;
         currentTotalFanLoss = estimateTotalFanLoss(currentPosts);
         currentDelayDays = estimateDelayDays(currentTotalFanLoss);
@@ -270,6 +370,7 @@
         postsWithRate.sort((a,b)=>b.rate - a.rate);
         currentBestThree = postsWithRate.slice(0,3);
         currentWorstThree = postsWithRate.slice(-3).reverse();
+        
         // 行銷包裹
         const pkgMap = new Map();
         currentPosts.forEach(p => {
@@ -286,6 +387,7 @@
             interactionRate: p.totalReach ? (p.totalInteractions/p.totalReach)*100 : 0,
             daysLeft: Math.max(0, Math.ceil((new Date(p.endDate).setDate(p.endDate.getDate()+7) - new Date())/(1000*3600*24)))
         }));
+        
         // 準備月曆用 Map
         let postsByDate = new Map(), qualifiedByDate = new Map(), progressByDate = new Map(), postCount = new Map(), hasIP = new Map(), dailyRate = new Map();
         currentPosts.forEach(p => {
@@ -305,6 +407,7 @@
         progressByDateObj = Object.fromEntries(progressByDate);
         postCountObj = Object.fromEntries(postCount);
         hasIPByDateObj = Object.fromEntries(hasIP);
+        
         // 雙高峰
         let maxCount=-1, maxCountDate=null, maxRate=-1, maxRateDate=null;
         for(let [d,arr] of postsByDate.entries()) if(arr.length>maxCount) { maxCount=arr.length; maxCountDate=d; }
@@ -554,53 +657,120 @@
         });
     }
 
-// 左側大腦建構
+// ========== 🌟 左側大腦建構 (動態 KPI 與文案) ==========
     function buildLeftBrain() {
-        const avgBest = currentBestThree.reduce((s,p)=>s+p.rate,0)/currentBestThree.length;
-        const avgWorst = currentWorstThree.reduce((s,p)=>s+p.rate,0)/currentWorstThree.length;
+        const kpiMap = { 'all': 2450, 'IG': 1500, 'FB': 500, 'LINE': 300, 'YouTube': 20, 'Threads': 100 };
+        const channelNameMap = { 'all': '全渠道', 'IG': 'Instagram', 'FB': 'Facebook', 'LINE': 'LINE', 'YouTube': 'YouTube', 'Threads': 'Threads' };
+        
+        const currentKPI = kpiMap[currentSelectedChannel] || 1500;
+        const currentChannelName = channelNameMap[currentSelectedChannel] || currentSelectedChannel;
+
+        // 🎯 依據選中渠道動態生成規則文案
+        let rulesHtml = '';
+        if (currentSelectedChannel === 'all') {
+            rulesHtml = `✔️ <strong>全渠道概覽門檻：</strong><br>- IG/FB：觀看 &ge; 100、點讚 &ge; 15<br>- Threads：觀看 &ge; 100、點讚 &ge; 5<br>- LINE：投票數 &ge; 20 且 點讚 &ge; 5<br>- YouTube：觀看 &ge; 200、點讚 &ge; 5`;
+        } else if (currentSelectedChannel === 'IG') {
+            rulesHtml = `✔️ <strong>IG 達標門檻：</strong><br>- 一般貼文：觀看 &ge; 100、點讚 &ge; 15<br>- 推廣行銷 (圖文)：觀看 &ge; 1500、點讚 &ge; 15、非粉比例 &ge; 15%、互動 &ge; 20<br>- 推廣行銷 (影片)：觀看 &ge; 1500、點讚 &ge; 20、非粉比例 &ge; 15%、互動 &ge; 20、續看率 &ge; 10%`;
+        } else if (currentSelectedChannel === 'FB') {
+            rulesHtml = `✔️ <strong>FB 達標門檻：</strong><br>- 貼文觀看 &ge; 100、點讚 &ge; 15`;
+        } else if (currentSelectedChannel === 'Threads') {
+            rulesHtml = `✔️ <strong>Threads 達標門檻：</strong><br>- 觀看 &ge; 100、點讚 &ge; 5<br>- 🎁 Bonus：新增追蹤 &ge; 1 即算達標`;
+        } else if (currentSelectedChannel === 'LINE') {
+            rulesHtml = `✔️ <strong>LINE 達標門檻：</strong><br>- 投票格式：投票人數 &ge; 20<br>- 圖文格式：點讚 &ge; 5`;
+        } else if (currentSelectedChannel === 'YouTube') {
+            rulesHtml = `✔️ <strong>YouTube 達標門檻：</strong><br>- 單篇：觀看 &ge; 200、點讚 &ge; 5、續看率 &ge; 10%`;
+        }
+
+        // 運算邏輯
+        const avgBest = currentBestThree.length ? currentBestThree.reduce((s,p)=>s+p.rate,0)/currentBestThree.length : 0;
+        const avgWorst = currentWorstThree.length ? currentWorstThree.reduce((s,p)=>s+p.rate,0)/currentWorstThree.length : 1;
         let compareAdvice = avgBest > avgWorst*3 ? `最佳互動率(${avgBest.toFixed(1)}%) 是劣勢的${(avgBest/avgWorst).toFixed(1)}倍，建議複製最佳元素。` : `最佳與最差差距僅${(avgBest-avgWorst).toFixed(1)}%，建議A/B測試。`;
+        
         const bestHasIP = currentBestThree.filter(p=>p.hasIP).length;
         const worstHasIP = currentWorstThree.filter(p=>p.hasIP).length;
-        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽bao」佔比較高，強化此 IP 顯著有效。`;
+        if(bestHasIP > worstHasIP) compareAdvice += ` 最佳內容中「🌱 芽寶」佔比較高，強化此 IP 顯著有效。`;
+        
         let warmth = 50 + (currentIPInteract - currentNonInteract)*2;
         warmth = Math.min(95, Math.max(5, warmth));
         setTimeout(()=>{ drawHalfGauge('brandGauge', warmth); },100);
         
         const leftHtml = `
-            <div class="card"><div class="card-title">🧠 戰略診斷</div>
-                <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}">📊 戰術狀態</div>
-                <div style="font-size:1.8rem; font-weight:800;">${currentPassRate}%</div>
-                <div>整體達標率 &nbsp; ${currentPassRate>=70?'穩定':(currentPassRate>=40?'需改善':'危急')}</div>
-                <div class="advice-text">⚠️ 機會成本：若不改善，1500粉目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
-                <button class="action-link" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
+            <div class="card">
+                <div class="card-title">
+                    <div style="display:flex; align-items:center;">
+                        🧠 戰略診斷
+                        <div id="diagnosisBtn" class="info-btn-embossed">ⓘ</div>
+                    </div>
+                </div>
+                
+                <div id="diagnosisInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:16px; width:100%; border-left:4px solid var(--primary);">
+                    <strong>💡 數據運算與推估邏輯：</strong><br>
+                    <div style="margin-top:6px; line-height:1.6; font-size: 0.75rem;">
+                        ${rulesHtml}<br><br>
+                        🚥 <strong>戰術燈號：</strong> <span style="color:#2e7d32; font-weight:600;">🟢 穩定 &ge; 70%</span> ｜ <span style="color:#e65100; font-weight:600;">🟡 改善 40~69%</span> ｜ <span style="color:#c62828; font-weight:600;">🔴 危急 &lt; 40%</span>。<br>
+                        📉 <strong>粉絲損失計算：</strong> 計算「未達標貼文」互動缺口乘以 0.05% 的轉粉常數，推算錯失的潛在粉絲。<br>
+                        ⏳ <strong>推遲天數：</strong> 流失粉絲數 &divide; 每日 50 粉常態增長基準。
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:4px;">
+                    <div>
+                        <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}" style="margin-bottom:8px;">📊 戰術狀態</div>
+                        <div style="font-size:1.8rem; font-weight:800; line-height:1;">${currentPassRate}%</div>
+                    </div>
+                    <div style="text-align:right; margin-bottom:4px;">
+                        <span style="background:#f4faf0; color:var(--primary-dark); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid #c5e0b4;">
+                            🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom:12px;">整體達標率 &nbsp; ${currentPassRate>=70?'穩定':(currentPassRate>=40?'需改善':'危急')}</div>
+                <div class="advice-text">⚠️ 機會成本：若不改善，${currentKPI.toLocaleString()} 粉目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
+                <button class="action-link" style="margin-top:12px;" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
             </div>
+            
             <div class="card"><div class="card-title">⚖️ 品牌平衡計 (溫暖 vs 專業)</div>
                 <div class="gauge-half"><canvas id="brandGauge" width="160" height="80"></canvas></div>
-                <div class="small-note">🌱 芽bao貼文帶動溫暖感，建議維持比例</div>
+                <div class="small-note">🌱 芽寶貼文帶動溫暖感，建議維持比例</div>
             </div>
+            
             <div class="card"><div class="card-title">🎚️ 策略模擬器</div>
                 <div class="slider-group"><label>下個月目標日均貼文數</label><input type="range" id="strategyTargetSliderDynamic" min="0" max="5" step="0.2" value="1.5"></div>
                 <div class="flex-between"><span>預測達標率</span><span id="simulateRate">--</span></div>
                 <div class="flex-between"><span>預測互動總量變化</span><span id="simulateBoost">--</span></div>
-                <button id="applyStrategyBtnDynamic" class="action-link" style="width:100%; justify-content:center;">⚡ 套用此節奏並產生下月預測</button>
+                <button id="applyStrategyBtnDynamic" class="action-link" style="width:100%; justify-content:center; margin-top:8px;">⚡ 套用此節奏並產生下月預測</button>
                 <div class="small-note">📐 信念校準：預測準確率82% (非線性風險已標註)</div>
             </div>
+            
             <div class="card"><div class="card-title">💡 顧問即時建議</div>
-                <!-- 🌟 L10-3 聯動校準的目標容器 -->
                 <div id="dynamicAdviceBox">
                     <div style="margin-bottom:12px;">${compareAdvice}</div>
                 </div>
                 <hr>
-                <!-- 🌟 L7-1 雙重編碼同步 -->
-                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽bao溢價</span><strong>+${currentPremium}%</strong></div>
-                <div class="flex-between" style="margin-bottom:6px;"><span>有芽bao互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>🌱 芽寶溢價</span><strong>+${currentPremium}%</strong></div>
+                <div class="flex-between" style="margin-bottom:6px;"><span>有芽寶互動率</span><strong>${currentIPInteract.toFixed(1)}%</strong></div>
                 <div class="flex-between" style="margin-bottom:12px;"><span>無芽寶互動率</span><strong>${currentNonInteract.toFixed(1)}%</strong></div>
                 <button class="action-link" onclick="location.href='audience.html'">👥 前往客群分析</button>
             </div>
         `;
         document.getElementById('leftBrain').innerHTML = leftHtml;
         
-        // 綁定 Slider ... (保留原本邏輯)
+        const diagBtn = document.getElementById('diagnosisBtn');
+        const diagInfo = document.getElementById('diagnosisInfo');
+        if (diagBtn && diagInfo) {
+            diagBtn.addEventListener('click', () => {
+                if (diagInfo.style.display === 'none') {
+                    diagInfo.style.display = 'block';
+                    diagBtn.classList.add('pressed');
+                } else {
+                    diagInfo.style.display = 'none';
+                    diagBtn.classList.remove('pressed');
+                }
+            });
+        }
+        
+        // 綁定 Slider...
         const slider = document.getElementById('strategyTargetSliderDynamic');
         const rateSpan = document.getElementById('simulateRate');
         const boostSpan = document.getElementById('simulateBoost');
