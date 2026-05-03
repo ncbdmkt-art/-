@@ -710,11 +710,7 @@
         
         const currentKPI = kpiMap[selectedChannel] || 1500;
         const currentChannelName = channelNameMap[selectedChannel] || selectedChannel;
-
-        // 🌟 新增：針對「全渠道」與「單一渠道」，客製化機會成本的目標字眼
-        const targetText = selectedChannel === 'all' 
-            ? `全渠道共 ${currentKPI.toLocaleString()}` 
-            : `${currentKPI.toLocaleString()}`;
+        const targetText = selectedChannel === 'all' ? `全渠道共 ${currentKPI.toLocaleString()}` : `${currentKPI.toLocaleString()}`;
 
         // 🎯 依據選中渠道動態生成規則文案
         let rulesHtml = '';
@@ -730,6 +726,22 @@
             rulesHtml = `✔️ <strong>LINE 達標門檻：</strong><br>- 投票格式：投票人數 &ge; 20<br>- 圖文格式：點讚 &ge; 5`;
         } else if (selectedChannel === 'YouTube') {
             rulesHtml = `✔️ <strong>YouTube 達標門檻：</strong><br>- 單篇：觀看 &ge; 200、點讚 &ge; 5、續看率 &ge; 10%`;
+        }
+
+        // 🌟 新增：戰術狀態的動態燈號與專屬色碼
+        let statusColor, statusText, statusIcon;
+        if (currentPassRate >= 70) {
+            statusColor = '#2e7d32'; // 深綠色
+            statusText = '穩定';
+            statusIcon = '🟢';
+        } else if (currentPassRate >= 40) {
+            statusColor = '#e67e22'; // 橘黃色
+            statusText = '需改善';
+            statusIcon = '🟡';
+        } else {
+            statusColor = '#d9534f'; // 紅色
+            statusText = '危急';
+            statusIcon = '🔴';
         }
 
         // 運算邏輯
@@ -764,22 +776,23 @@
                     </div>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:4px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px;">
                     <div>
                         <div class="badge ${currentPassRate>=70?'status-green':(currentPassRate>=40?'status-yellow':'status-red')}" style="margin-bottom:8px;">📊 戰術狀態</div>
-                        <div style="font-size:1.8rem; font-weight:800; line-height:1;">${currentPassRate}%</div>
+                        
+                        <!-- 🌟 視覺高度綁定：顏色 + 數據 + 燈號圖示 + 狀態文字，全部合體 -->
+                        <div style="color:${statusColor}; font-weight:800; display:flex; align-items:baseline; gap:8px;">
+                            <span style="font-size:2rem; line-height:1;">${currentPassRate}%</span>
+                            <span style="font-size:1rem; font-weight:700;">${statusIcon} 整體達標率 ${statusText}</span>
+                        </div>
                     </div>
                     <div style="text-align:right; margin-bottom:4px;">
-                        <!-- 🌟 將 KPI 後面直接加上 "粉絲" 兩個字 -->
                         <span style="background:#f4faf0; color:var(--primary-dark); padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid #c5e0b4;">
                             🎯 ${currentChannelName} KPI: ${currentKPI.toLocaleString()}粉絲
                         </span>
                     </div>
                 </div>
                 
-                <div style="margin-bottom:12px;">整體達標率 &nbsp; ${currentPassRate>=70?'穩定':(currentPassRate>=40?'需改善':'危急')}</div>
-                
-                <!-- 🌟 套用客製化文案：若是全渠道會顯示 "全渠道共 2,450 粉絲" -->
                 <div class="advice-text">⚠️ 機會成本：若不改善，${targetText} 粉絲目標將推遲 ${currentDelayDays} 天 (損失 ${currentTotalFanLoss} 粉絲)</div>
                 <button class="action-link" style="margin-top:12px;" onclick="document.getElementById('worstAnchor').scrollIntoView({behavior:'smooth'})">🔍 查看最差內容</button>
             </div>
@@ -824,7 +837,6 @@
             });
         }
         
-        // 綁定 Slider 事件
         const slider = document.getElementById('strategyTargetSliderDynamic');
         const rateSpan = document.getElementById('simulateRate');
         const boostSpan = document.getElementById('simulateBoost');
