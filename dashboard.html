@@ -124,7 +124,8 @@
         
         .channel-recap-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
         .channel-recap-item { background: var(--bg-card-alt); border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; border: 1px solid var(--border-muted); }
-        .lowest-interact { background: #fffcfc; border-color: #fad2d2; border-left: 5px solid var(--status-down); }
+        .lowest-growth { background: #fffcfc; border-color: #fad2d2; border-left: 5px solid var(--status-down); }
+        .no-data-card { background: #fffdf5; border-color: #ffe0b2; border-left: 5px solid var(--status-warn); }
         
         .lever-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-muted); }
         .lever-change { margin-left: 12px; font-weight: 600; }
@@ -820,47 +821,78 @@
         let channelData = [];
         
         for(let p of platforms){
+            // 抓出最新有發文的月份資料
             const platData = monthlyAggGlobal.filter(m => m.platform === p).sort((a,b) => b.yearMonth.localeCompare(a.yearMonth));
+            
+            let followerGrowth = 0; // 新增：隱藏在背景計算的粉絲增長率
+            
             if(platData.length > 0) {
                 const latestMonth = platData[0];
+                const prevMonth = platData.length > 1 ? platData[1] : null;
+                
+                // 計算粉絲增長率
+                let currFans = getFollowerInMonth(p, latestMonth.year, latestMonth.month, allPostsGlobal) || 0;
+                let prevFans = prevMonth ? getFollowerInMonth(p, prevMonth.year, prevMonth.month, allPostsGlobal) : 0;
+                
+                if (prevFans > 0) {
+                    followerGrowth = (currFans - prevFans) / prevFans;
+                }
+                
                 channelData.push({ 
                     platform: p, latestMonthStr: latestMonth.yearMonth, postCount: latestMonth.postCount, 
-                    medianTraffic: latestMonth.medianTraffic, engagementRate: latestMonth.medianEngagementRate 
+                    medianTraffic: latestMonth.medianTraffic, engagementRate: latestMonth.medianEngagementRate,
+                    followerGrowth: followerGrowth
                 });
             } else { 
-                channelData.push({ platform: p, latestMonthStr: '無', postCount: 0, medianTraffic: 0, engagementRate: 0 });
+                channelData.push({ platform: p, latestMonthStr: '無', postCount: 0, medianTraffic: 0, engagementRate: 0, followerGrowth: 0 });
             }
         }
         
-        // 排除 IG, FB, LINE 參與「最低互動率」的比較
-        const activeChannels = channelData.filter(c => c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
-        const minEng = activeChannels.length > 0 ? Math.min(...activeChannels.map(c => c.engagementRate)) : -1;
+        // 抓出有發文的頻道，找出「最低粉絲增長率」的數值 (做為紅框警示標準)
+        const activeChannels = channelData.filter(c => c.postCount > 0);
+        const minGrowth = activeChannels.length > 0 ? Math.min(...activeChannels.map(c => c.followerGrowth)) : 0;
         
         let html = '<div class="channel-recap-grid">';
         for(let c of channelData){
-            const isLowest = (c.engagementRate === minEng && c.postCount > 0 && !['IG', 'FB', 'LINE'].includes(c.platform));
+            // 狀態判定：無數據(黃色) vs 粉絲增長墊底(紅色)
+            const isNoData = (c.postCount === 0);
+            const isLowestGrowth = (!isNoData && c.followerGrowth === minGrowth && activeChannels.length > 1);
+            
             let trafficLabel = '📊流量MID';
             if (c.platform === 'IG' || c.platform === 'FB') trafficLabel = '📊觸及MID';
             if (c.platform === 'YouTube') trafficLabel = '📺觀看MID';
             if (c.platform === 'LINE') trafficLabel = '🗳️投票MID';
             if (c.platform === 'Threads') trafficLabel = '👥粉絲觀看MID';
             
+            // 互動率顯示判定 (IG, FB, LINE 不顯示互動率)
             let engHtml = '';
             if (!['IG', 'FB', 'LINE'].includes(c.platform)) {
                 engHtml = `<span>💬互動率 ${c.engagementRate.toFixed(2)}%</span>`;
             }
             
-            html += `<div class="channel-recap-item ${isLowest ? 'lowest-interact' : ''}">
+            let cardClass = '';
+            let warningHtml = '';
+            
+            // 根據狀態套用對應的 UI 樣式
+            if (isNoData) {
+                cardClass = 'no-data-card';
+                warningHtml = '<span class="warning" style="color:#f57c00; font-weight:600; font-size:0.8rem;">⚠️ 暫無數據</span>';
+            } else if (isLowestGrowth) {
+                cardClass = 'lowest-growth';
+                warningHtml = '<span class="warning" style="color:#d9534f; font-weight:600; font-size:0.8rem;">⚠️ 最低粉絲增長</span>';
+            }
+            
+            html += `<div class="channel-recap-item ${cardClass}">
                         <div class="chan-name"><i class="fab fa-${c.platform==='YouTube'?'youtube':c.platform.toLowerCase()}"></i> ${c.platform}<span style="font-size:0.7rem; color:#888; margin-left:8px;">(${c.latestMonthStr})</span></div>
                         <div class="chan-stats">
                             <span>${trafficLabel} ${Math.round(c.medianTraffic).toLocaleString()}</span>
                             <span>📄發文 ${c.postCount}篇</span>
                             ${engHtml}
                         </div>
-                        ${c.postCount === 0 ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 暫無數據</span>' : (isLowest ? '<span class="warning" style="color:#d9534f; font-size:0.8rem;">⚠️ 最低互動率</span>' : '')}
+                        ${warningHtml}
                     </div>`;
         }
-        html += `<div class="info-note">🔔 最低互動率平台已高亮，數據顯示各平台「最新有發文月份」之表現。</div>`;
+        html += `<div class="info-note">🔔 最低「粉絲增長率」平台已紅標（數值隱藏於背景運算），數據顯示各平台「最新有發文月份」之表現。</div>`;
         document.getElementById('recapText').innerHTML = html;
     }
     
