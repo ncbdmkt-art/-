@@ -194,6 +194,64 @@
             opacity: 1;
             transform: translateY(0);
         }
+        /* --- 🔍 延伸知識窗樣式 (靠右智能變形展開) --- */
+        .knowledge-window {
+            margin-top: 16px;
+            border: 1px solid var(--primary-light);
+            border-radius: 20px;
+            background: #fafdf5;
+            margin-left: auto; /* 靠右對齊的關鍵 */
+            width: fit-content;
+            max-width: 100%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        /* 點擊展開後，自動變成滿版寬度 */
+        .knowledge-window[open] {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .knowledge-summary {
+            padding: 8px 16px;
+            background: #eef5ea;
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            border-radius: 20px;
+        }
+        .knowledge-window[open] .knowledge-summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            background: var(--primary-light);
+            color: var(--primary-text);
+        }
+        .knowledge-summary::after {
+            content: '\f0d7';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            margin-left: auto;
+            transition: transform 0.3s ease;
+        }
+        details[open] .knowledge-summary::after {
+            transform: rotate(180deg);
+        }
+        .knowledge-content {
+            padding: 16px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #4a5d4e;
+            border-top: 1px dashed var(--primary-light);
+            text-align: left;
+        }
+        .knowledge-content strong { color: var(--primary-dark); }
+        .knowledge-content ul { padding-left: 20px; margin-top: 8px; margin-bottom: 0; }
+        .knowledge-content li { margin-bottom: 6px; }
     </style>
 </head>
 <body>
@@ -302,7 +360,7 @@
             
             <div class="card"><div class="card-title">📐 內容槓桿率 (單篇平均產出 vs 上月)</div><div id="leverageContainer">計算中...</div></div>
             
-            <!-- 📈 觸及趨勢圖區塊 -->
+           <!-- 📈 觸及趨勢圖區塊 -->
             <div class="card">
                 <div class="card-title">
                     <div style="display:flex; align-items:center;">
@@ -310,7 +368,7 @@
                         <div id="idealSlopeBtn" class="info-btn-embossed">ⓘ</div>
                     </div>
                 </div>
-                <!-- 👇 升級版的隱藏判讀指引框 (加入 MA 與單月差異說明) -->
+                <!-- 👇 判讀指引框 -->
                 <div id="idealSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%; border-left:4px solid var(--primary);">
                     <strong>💡 一秒判讀法：我們年底能達標嗎？</strong><br>
                     <div style="margin-top:6px; line-height:1.6;">
@@ -324,43 +382,85 @@
                         <strong>━ 粗實線 (3期MA)：</strong> 平滑掉極端波動，用來看「長期的真實體質與趨勢」。<br>
                         <strong>-- 虛線 (理想斜率)：</strong> 系統推算的達標及格線。
                     </div>
-                 <!-- 👇 新增的：可懸浮的干預線圖例 -->
-                <div style="display:flex; justify-content:flex-end; margin-top:-10px; margin-bottom:5px; padding-right:10px;">
-                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接用滑鼠「左右拖曳」圖表上的橘線，來對比策略調整前後的成效差異！">
+                </div>
+                
+                <!-- 👇 文字版互動指南 + 策略調整線圖例 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; margin-bottom:12px; padding:0 4px; flex-wrap:wrap; gap:8px;">
+                    <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; letter-spacing:0.5px;">
+                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊「圖表內部」可瞬移橘線
+                    </div>
+                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接點擊圖表上的特定月份，來對比策略調整前後的成效差異！">
                         <span style="display:inline-block; width:16px; border-top:2px dashed #ffa500; margin-right:4px; vertical-align:middle;"></span>
-                        <span style="font-size:0.75rem; color:#e65100; cursor:ew-resize; text-decoration:underline dotted; font-weight:600;">↕ 策略調整 (可左右拖曳)</span>
+                        <span style="font-size:0.75rem; color:#e65100; text-decoration:underline dotted; font-weight:600; cursor:pointer;">策略調整線</span>
                     </div>
                 </div>
+                
                 <canvas id="reachTrendChart" height="160"></canvas>
-            </div>   
+                
+                <!-- 👇 移至右下方的延伸知識窗 (觸及圖專屬) -->
+                <details class="knowledge-window">
+                    <summary class="knowledge-summary"><i class="fas fa-search"></i> 為什麼有「理想斜率」？</summary>
+                    <div class="knowledge-content">
+                        這條虛線是將虛無縹緲的「粉絲KPI」具象化為「每月的行動目標」。<br><br>
+                        <strong>🧮 它是如何被計算與校正的？</strong>
+                        <ul>
+                            <li><strong>動態計算：</strong> 系統會抓取你目前的「實際粉絲數」，與你設定的「年底目標」相減得出「粉絲缺口」。</li>
+                            <li><strong>常數換算：</strong> 將缺口除以 <code>0.008</code> (社群常態觸及轉粉率 0.8%)，再除以「距離年底剩餘月數」，算出你接下來每個月<strong>必須達到的最低觸及量</strong>。</li>
+                            <li><strong>實時校正：</strong> 只要你這個月表現超前，下個月的理想斜率就會自動變平緩；反之，若嚴重落後，它就會變陡峭，逼你加緊腳步。</li>
+                        </ul>
+                        <strong>🎯 戰略意義：</strong> 它是驗證目標可行性的「Reality Check」。如果實線一直趴在虛線下方，就代表「目前的純自然流量策略絕對無法達標」，必須立刻改變戰術。
+                    </div>
+                </details>
+            </div>
             
             <!-- 💬 互動率趨勢圖區塊 -->
             <div class="card">
                 <div class="card-title">
                     <div style="display:flex; align-items:center;">
                         💬 近月互動率趨勢 (目標閾值 3.5%)
-                        <!-- 新增互動率專屬的 i 按鈕 -->
                         <div id="engSlopeBtn" class="info-btn-embossed">ⓘ</div>
                     </div>
                 </div>
-                <!-- 👇 互動率專屬的隱藏判讀指引框 -->
+                <!-- 👇 判讀指引框 -->
                 <div id="engSlopeInfo" class="info-note" style="display:none; margin-top:0; margin-bottom:12px; width:100%; border-left:4px solid var(--primary);">
                     <strong>💡 一秒判讀法：我們的內容粉絲愛看嗎？</strong><br>
                     <div style="margin-top:6px; line-height:1.6;">
-                        ✔️ <strong>高於 3.5% (白底)：</strong> <span style="color:#2e7d32; font-weight:600;">內容極佳！</span>此時「下廣告放大觸及」CP值最高。<br>
-                        ❌ <strong>低於 3.5% (淡紅底)：</strong> <span style="color:#c62828; font-weight:600;">內容疲乏！</span>嚴禁盲目投廣告，應立刻更換素材風格或重新抓取受眾。
+                        ✔️ <strong>高於 3.5% (白底區)：</strong> <span style="color:#2e7d32; font-weight:600;">內容極佳！</span>此時「下廣告放大觸及」CP值最高。<br>
+                        ❌ <strong>低於 3.5% (淡紅區)：</strong> <span style="color:#c62828; font-weight:600;">內容疲乏！</span>嚴禁盲目投廣告，應立刻更換素材風格或重新盤點受眾。
                     </div>
                     <hr style="border:0; border-top:1px dashed #c5e0b4; margin:8px 0;">
-                    <span style="color:#666; font-size:0.75rem;">📝 元素說明：採用「中位數」計算，排除單篇爆紅或極差的雜訊，反映最真實的日常體質。</span>
-                </div>
-                <!-- 👇 新增的：可懸浮的干預線圖例 -->
-                <div style="display:flex; justify-content:flex-end; margin-top:-10px; margin-bottom:5px; padding-right:10px;">
-                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接用滑鼠「左右拖曳」圖表上的橘線，來對比策略調整前後的成效差異！">
-                        <span style="display:inline-block; width:16px; border-top:2px dashed #ffa500; margin-right:4px; vertical-align:middle;"></span>
-                        <span style="font-size:0.75rem; color:#e65100; cursor:ew-resize; text-decoration:underline dotted; font-weight:600;">↕ 策略調整 (可左右拖曳)</span>
+                    <div style="color:#666; font-size:0.75rem; line-height:1.5;">
+                        <strong>📝 元素說明與 MA 判讀：</strong><br>
+                        <strong>─ 細實線 (單月互動率中位數)：</strong> 排除單篇爆紅或極差的雜訊，反映「該月日常發文」的真實共鳴度。<br>
+                        <strong>━ 粗實線 (3期MA)：</strong> 平滑單月波動，用來看「長期內容體質是正在變強還是衰退」。<br>
+                        <strong>-- 虛線 (3.5% 目標閾值)：</strong> 判斷是否值得投入廣告資源的健康及格線。
                     </div>
                 </div>
+                
+                <!-- 👇 文字版互動指南 + 策略調整線圖例 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; margin-bottom:12px; padding:0 4px; flex-wrap:wrap; gap:8px;">
+                    <div style="font-size:0.85rem; color:var(--primary-dark); font-weight:600; letter-spacing:0.5px;">
+                        ＊指引：點擊上方「圖例文字」可獨立開關折線 ｜ 點擊「圖表內部」可瞬移橘線
+                    </div>
+                    <div class="custom-intervention-legend" data-tooltip="【干預線 Intervention Line】標記發生重大改變的時間點。請直接點擊圖表上的特定月份，來對比策略調整前後的成效差異！">
+                        <span style="display:inline-block; width:16px; border-top:2px dashed #ffa500; margin-right:4px; vertical-align:middle;"></span>
+                        <span style="font-size:0.75rem; color:#e65100; text-decoration:underline dotted; font-weight:600; cursor:pointer;">策略調整線</span>
+                    </div>
+                </div>
+                
                 <canvas id="engagementTrendChart" height="150"></canvas>
+
+                <!-- 👇 移至右下方的延伸知識窗 (互動圖專屬) -->
+                <details class="knowledge-window">
+                    <summary class="knowledge-summary"><i class="fas fa-search"></i> 為什麼設定 3.5%？</summary>
+                    <div class="knowledge-content">
+                        在目前的 IG/FB 社群演算法環境下，<strong>3.5% 是一個公認的健康安全線。</strong><br><br>
+                        <ul>
+                            <li><strong>💰 預算投放的閘門 (Gateway)：</strong><br> 當互動率 <strong>&gt; 3.5%</strong> 時，代表受眾對你的素材極度感興趣。這時候下廣告（買流量放大觸及），轉換率與 CP 值會非常高；反之，如果互動率 <strong>&lt; 3.5%</strong> (掉進紅底區)，代表內容已經疲乏或是受眾輪廓歪掉，此時盲目砸廣告費只會像「把錢丟進水裡」一樣毫無水花。</li>
+                            <li><strong>🧪 內容方向的 A/B 測試指標：</strong><br> 當發現互動率跌破 3.5%，主管就該立刻下達指令，暫停現有的內容套路（例如無效的早安圖），開始測試全新的設計風格或短影音腳本。</li>
+                        </ul>
+                    </div>
+                </details>
             </div>
 
             <div class="simulator"><div class="card-title">📉 策略模擬與非線性風險預警 (線性回歸)</div>
